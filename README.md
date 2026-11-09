@@ -128,7 +128,7 @@ pip install torch torchvision torchaudio transformers datasets scikit-learn nump
 ```
 
 ### Reproducing Any Phase in Kaggle / Colab
-Each phase directory contains a self-contained, automated Jupyter notebook (`CS781_PhaseX_Champion_Pipeline.ipynb`). 
+Each phase directory contains a self-contained, automated Jupyter notebook (`phaseX_model.ipynb`). 
 
 1. **Upload Notebook:** Upload the respective notebook to Kaggle or Colab.
 2. **GPU Settings:** Select **GPU (T4 x2 or P100)** with **Internet ON**.

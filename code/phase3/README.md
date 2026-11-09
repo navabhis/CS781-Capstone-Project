@@ -26,7 +26,7 @@
 ---
 
 ### 3. How to Execute Each Run in Kaggle
-In [`CS781_Phase3_Champion_Pipeline.ipynb`](file:///c:/Users/HP/Documents/CS781%20Project/CS781_Phase3_Champion_Pipeline.ipynb), open **Step 8 (Cell 9)** and change the single variable:
+In [`phase3_model.ipynb`](file:///c:/Users/HP/Documents/CS781%20Project/phase3_model.ipynb), open **Step 8 (Cell 9)** and change the single variable:
 
 ```python
 # For Submission P3-1:

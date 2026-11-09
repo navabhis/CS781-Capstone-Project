@@ -24,7 +24,7 @@
 
 ### 2. Automated "Run All" Execution Mode
 
-You don't need to manually configure and run 6 separate sessions. In [`CS781_Phase5_Champion_Pipeline.ipynb`](file:///c:/Users/HP/Documents/CS781%20Project/CS781_Phase5_Champion_Pipeline.ipynb), simply click **"Run All"**:
+You don't need to manually configure and run 6 separate sessions. In [`phase5_model.ipynb`](file:///c:/Users/HP/Documents/CS781%20Project/phase5_model.ipynb), simply click **"Run All"**:
 
 By default in **Cell 8**:
 ```python
@@ -84,7 +84,7 @@ The pipeline tokenizes data **once in RAM**, then runs through each method back-
 ### 4. Step-by-Step Kaggle Execution Guide (One-Click)
 
 1. **Upload Notebook:**
-   * Open Kaggle, click **File -> Upload notebook**, and upload [`CS781_Phase5_Champion_Pipeline.ipynb`](file:///c:/Users/HP/Documents/CS781%20Project/CS781_Phase5_Champion_Pipeline.ipynb).
+   * Open Kaggle, click **File -> Upload notebook**, and upload [`phase5_model.ipynb`](file:///c:/Users/HP/Documents/CS781%20Project/phase5_model.ipynb).
 2. **Verify Settings:**
    * **GPU:** T4 x2 or P100 enabled.
    * **Internet:** ON (or attach dataset locally).

@@ -1,80 +1,4 @@
-import json
-import os
-import shutil
-
-notebook = {
-    "cells": [],
-    "metadata": {
-        "kernelspec": {
-            "display_name": "Python 3 (ipykernel)",
-            "language": "python",
-            "name": "python3"
-        },
-        "language_info": {
-            "codemirror_mode": {"name": "ipython", "version": 3},
-            "file_extension": ".py",
-            "mimetype": "text/x-python",
-            "name": "python",
-            "nbconvert_exporter": "python",
-            "pygments_lexer": "ipython3",
-            "version": "3.10.12"
-        }
-    },
-    "nbformat": 4,
-    "nbformat_minor": 4
-}
-
-def add_md(source):
-    notebook["cells"].append({
-        "cell_type": "markdown",
-        "metadata": {},
-        "source": [line + "\n" for line in source.strip().split("\n")]
-    })
-
-def add_code(source):
-    notebook["cells"].append({
-        "cell_type": "code",
-        "execution_count": None,
-        "metadata": {},
-        "outputs": [],
-        "source": [line + "\n" for line in source.strip().split("\n")]
-    })
-
-# ============================================================================
-# TITLE & STRATEGY
-# ============================================================================
-add_md("""# CS-781 Capstone Project — Phase 5: Legal Statute Identification (LSI)
-## Single High-Score Champion Pipeline (~30 to 40 Min Training, Target 0.65–0.75+ Macro-F1)
-### Dedicated High-Precision Architecture: Solves the 0.201 False-Positive Collapse
-
-**Why the Previous Run Scored 0.201:**
-* Inspection showed models were predicting **9 to 31 statutes per document** when ground truth only has **~1.8 statutes/case**.
-* Predicting 30 statutes drops Precision to **6.7%**, mathematically capping Macro-F1 at ~0.20.
-
-**How This Single Champion Model Solves It to Reach Top-Tier Scores:**
-1. **Statute-Salient 3-Anchor Windowing (`MAX_CHUNKS = 3`):**
-   - Rather than blind Head/Tail slicing, scans the document for statutory keyword density (`section`, `act`, `article`, `code`, `penal`, `procedure`).
-   - Extracts: **Head 512** (petition & charges) + **Most Statute-Dense Middle Chunk 512** (actual statutory discussion) + **Tail 512** (operative decree).
-2. **Deep Legal Statute Champion Architecture (`DeepLegalStatuteChampion`):**
-   - 4-layer Transformer with hidden dimension $512$, 8 attention heads, inter-anchor multi-head attention, and attentive pooling.
-   - **Warm-start from Phase 1:** Token embedding matrix directly inherits legal embeddings from `champion_moe.pth`.
-3. **Calibrated Asymmetric Loss (ASL):**
-   - Margin $m = 0.05$ hard-zeros background negative gradients, eliminating false-positive probability bleed.
-4. **Fast Statistical Lexical Prior ($P_{\\text{lexical}}$):**
-   - Lightweight TF-IDF + Naive Bayes prior trained in 30 seconds that catches explicit statute citations (*"Section 302"*, *"Section 138"*, *"Article 226"*).
-5. **Hybrid Neural-Lexical Blending:**
-   - $P_{\\text{final}} = 0.70 \\cdot P_{\\text{neural}} + 0.30 \\cdot P_{\\text{lexical}}$.
-6. **Precision-Guarded Dynamic Top-$K$ Decision Rule:**
-   - Always selects Top-1; admits Top-2 and Top-3 only if confidence is high ($K \\le 3$).
-   - Mathematically bounds the average predicted statutes per document to **~1.7–2.1**, preserving Precision at **65–75%+** and skyrocketing Macro-F1!
-
-**Execution Time:** **~30 to 35 minutes total** on a single Kaggle T4 GPU (well within your 3-hour budget!). Just click **"Run All"**!
-""")
-
-# ============================================================================
-# CELL 1: Environment Setup & Deterministic Seeds
-# ============================================================================
-add_code("""# Step 0: Environment Setup & Deterministic Seeds
+# Step 0: Environment Setup & Deterministic Seeds
 import os
 import sys
 import gc
@@ -112,12 +36,11 @@ print(f"Device: {device}")
 if torch.cuda.is_available():
     print(f"GPU: {torch.cuda.get_device_name(0)}")
     print(f"GPU Memory: {torch.cuda.get_device_properties(0).total_memory / (1024**3):.2f} GB")
-""")
 
-# ============================================================================
-# CELL 2: Checkpoint Safeguard & Discovery
-# ============================================================================
-add_code("""# Step 1: Pretrained Phase 1 Backbone Checkpoint Discovery
+
+#======================================================================
+
+# Step 1: Pretrained Phase 1 Backbone Checkpoint Discovery
 SAVED_CKPT_PATH = "/kaggle/working/champion_moe.pth"
 
 def prepare_checkpoint():
@@ -159,12 +82,11 @@ else:
     print("=" * 65)
     print("⚠️ Checkpoint not found yet! Please attach Phase 1 dataset/model to Kaggle.")
     print("=" * 65)
-""")
 
-# ============================================================================
-# CELL 3: Hugging Face Data Ingestion
-# ============================================================================
-add_code("""# Step 2: Acquire Official Phase 5 LSI Dataset (Local Input or Hugging Face Hub)
+
+#======================================================================
+
+# Step 2: Acquire Official Phase 5 LSI Dataset (Local Input or Hugging Face Hub)
 HF_REPO_ID = "Exploration-Lab/CS-781-Capstone"
 
 hf_token = os.environ.get("HF_TOKEN", None)
@@ -220,12 +142,11 @@ for rel_path in files_to_download:
         print(f"[Dataset] Downloaded from HF: {rel_path} -> {local_path}")
     except Exception as e:
         print(f"[Dataset] Download notice for {rel_path}: {e}")
-""")
 
-# ============================================================================
-# CELL 4: Data Parsing, Label Universe & Moderated Class Weights
-# ============================================================================
-add_code("""# Step 3: Parse Dataset & Discover Statute Universe
+
+#======================================================================
+
+# Step 3: Parse Dataset & Discover Statute Universe
 def parse_lsi_file(file_path):
     if not file_path or not os.path.exists(file_path):
         return []
@@ -329,16 +250,15 @@ print(f"Validation Cases (dev.json):    {len(dev_docs):,}")
 print(f"Test Cases (test.json):          {len(test_docs):,}")
 print(f"Statute Universe:               {NUM_STATUTES} classes (IDs {min(ALL_STATUTES)} to {max(ALL_STATUTES)})")
 print("=" * 65)
-""")
 
-# ============================================================================
-# CELL 5: Statute-Salient 3-Anchor Windowing & DataLoaders
-# ============================================================================
-add_code("""# Step 4: Statute-Salient 3-Anchor Windowing (Head + Dense Mid + Tail = 1,536 tokens)
+
+#======================================================================
+
+# Step 4: Statute-Salient 3-Anchor Windowing (Head + Dense Mid + Tail = 1,536 tokens)
 MAX_CHUNKS = 3
 CHUNK_LEN = 512
 
-STATUTE_KW_REGEX = re.compile(r'\\b(section|sec|act|article|art|order|rule|code|penal|procedure|statute|schedule)\\b', re.IGNORECASE)
+STATUTE_KW_REGEX = re.compile(r'\b(section|sec|act|article|art|order|rule|code|penal|procedure|statute|schedule)\b', re.IGNORECASE)
 
 def find_most_salient_statute_window(words, window_size=520, step=250):
     if len(words) <= window_size:
@@ -438,12 +358,11 @@ train_loader = DataLoader(train_ds, batch_size=16, shuffle=True, pin_memory=True
 dev_loader = DataLoader(dev_ds, batch_size=32, shuffle=False, pin_memory=True)
 test_loader = DataLoader(test_ds, batch_size=32, shuffle=False, pin_memory=True)
 print(f"Tokenization complete in {time.time()-t0_tok:.1f}s! Multi-anchor DataLoaders ready.")
-""")
 
-# ============================================================================
-# CELL 6: Fast Statistical Lexical Prior (TF-IDF Multi-Label Classifier)
-# ============================================================================
-add_code("""# Step 5: Fast Statistical Lexical Prior (Catches Explicit Statute Citations)
+
+#======================================================================
+
+# Step 5: Fast Statistical Lexical Prior (Catches Explicit Statute Citations)
 print("Training Statistical Lexical Prior on statutory vocabulary...")
 t0_lex = time.time()
 
@@ -483,12 +402,11 @@ except Exception as e:
     print(f"Lexical Prior Note: {e} -> Continuing with pure neural champion.")
     has_lexical_prior = False
     lexical_test_probs = None
-""")
 
-# ============================================================================
-# CELL 7: Deep Legal Statute Champion Model (Pure PyTorch)
-# ============================================================================
-add_code("""# Step 6: Deep Legal Statute Champion Architecture (Pure PyTorch)
+
+#======================================================================
+
+# Step 6: Deep Legal Statute Champion Architecture (Pure PyTorch)
 class TransformerBlock(nn.Module):
     def __init__(self, dim, heads=8, ffn_dim=2048, dropout=0.1):
         super().__init__()
@@ -509,11 +427,11 @@ class TransformerBlock(nn.Module):
         return x
 
 class DeepLegalStatuteChampion(nn.Module):
-    \"\"\"
+    """
     Deep Legal Statute Identification Champion Model.
     4 Transformer Blocks (d=512, 8 heads), Pretrained Legal Embedding Warm-Start,
     Inter-Anchor Multi-Head Attention, and Attentive Document Pooling.
-    \"\"\"
+    """
     def __init__(self, vocab_count=50257, embed_size=512, heads=8, layers=4, num_classes=NUM_STATUTES, max_chunks=MAX_CHUNKS, dropout=0.15):
         super().__init__()
         self.embed_size = embed_size
@@ -597,17 +515,16 @@ except Exception as e:
 model.to(device)
 trainable_p = sum(p.numel() for p in model.parameters() if p.requires_grad)
 print(f"Total Trainable Parameters: {trainable_p:,}")
-""")
 
-# ============================================================================
-# CELL 8: Calibrated Asymmetric Loss & Precision-Guarded Metric Evaluator
-# ============================================================================
-add_code("""# Step 7: Calibrated Asymmetric Loss & Precision-Guarded Metric Evaluator
+
+#======================================================================
+
+# Step 7: Calibrated Asymmetric Loss & Precision-Guarded Metric Evaluator
 class MultiLabelAsymmetricLoss(nn.Module):
-    \"\"\"
+    """
     Calibrated Asymmetric Loss (ASL) with Margin Thresholding.
     Hard-zeros negative gradients below margin m=0.05 to eliminate false-positive probability bleed.
-    \"\"\"
+    """
     def __init__(self, pos_weights=None, gamma_neg=2.0, margin=0.05):
         super().__init__()
         self.pos_weights = pos_weights
@@ -629,10 +546,10 @@ class MultiLabelAsymmetricLoss(nn.Module):
         return - (pos_loss + neg_loss).mean()
 
 def precision_guarded_predict(probs_matrix, max_k=3, min_p2=0.30, min_p3=0.35, min_p4=0.45):
-    \"\"\"
+    """
     Precision-Guarded Dynamic Top-K Decision Rule.
     Prevents false-positive explosion by capping predictions to the true empirical court prior (1.5-2.2 statutes/case).
-    \"\"\"
+    """
     all_preds = []
     for doc_probs in probs_matrix:
         sorted_indices = np.argsort(doc_probs)[::-1]
@@ -700,12 +617,11 @@ def evaluate_lsi_macro_f1(gold_targets, pred_probs):
     
     avg_predicted_statutes = float(np.mean([len(p) for p in discrete_preds]))
     return macro_f1, micro_f1, avg_predicted_statutes
-""")
 
-# ============================================================================
-# CELL 9: High-Performance 4-Epoch Champion Training Loop (~25–30 mins)
-# ============================================================================
-add_code("""# Step 8: High-Performance Champion Training Loop (~25–30 mins total)
+
+#======================================================================
+
+# Step 8: High-Performance Champion Training Loop (~25–30 mins total)
 EPOCHS = 4
 BATCH_SIZE = 16
 LEARNING_RATE = 4e-4
@@ -789,7 +705,7 @@ for epoch in range(1, EPOCHS + 1):
             val_gold.extend(batch["target"].numpy())
             
     val_macro_f1, val_micro_f1, avg_pred_s = evaluate_lsi_macro_f1(val_gold, val_probs)
-    print(f"\\n>>> Epoch [{epoch:02d}/{EPOCHS:02d}] COMPLETE | Train Loss: {avg_loss:.4f} | Val Macro-F1: {val_macro_f1:.4f} | Val Micro-F1: {val_micro_f1:.4f} | Avg Statutes/Doc: {avg_pred_s:.2f} ({time.time()-t0_ep:.1f}s)\\n")
+    print(f"\n>>> Epoch [{epoch:02d}/{EPOCHS:02d}] COMPLETE | Train Loss: {avg_loss:.4f} | Val Macro-F1: {val_macro_f1:.4f} | Val Micro-F1: {val_micro_f1:.4f} | Avg Statutes/Doc: {avg_pred_s:.2f} ({time.time()-t0_ep:.1f}s)\n")
     
     if val_macro_f1 > best_macro_f1:
         best_macro_f1 = float(val_macro_f1)
@@ -805,12 +721,11 @@ for epoch in range(1, EPOCHS + 1):
 print("=" * 70)
 print(f"CHAMPION TRAINING COMPLETE in {(time.time()-t0_train)/60:.1f} mins! Best Validation Macro-F1: {best_macro_f1:.4f}")
 print("=" * 70)
-""")
 
-# ============================================================================
-# CELL 10: Hybrid Neural-Lexical Inference, Schema Validation & Packaging
-# ============================================================================
-add_code("""# Step 9: Hybrid Neural-Lexical Inference & Codabench Packaging
+
+#======================================================================
+
+# Step 9: Hybrid Neural-Lexical Inference & Codabench Packaging
 print("Generating Final Predictions for Codabench Submission...")
 
 if os.path.exists(best_model_path):
@@ -868,7 +783,7 @@ for p in test_predictions:
     assert all(isinstance(x, int) for x in p["pred"]), f"Non-integer prediction: {p}"
     assert len(p["pred"]) == len(set(p["pred"])), f"Duplicate prediction: {p}"
 
-print("\\n" + "=" * 70)
+print("\n" + "=" * 70)
 print("✅ STRICT SCHEMA VALIDATION PASSED:")
 print(f"  Total Test Cases:            {len(test_predictions):,}")
 print(f"  Average Statutes per Case:   {np.mean(pred_counts):.2f} (Target prior: 1.7–2.1)")
@@ -888,21 +803,7 @@ with zipfile.ZipFile("submission.zip", "w", compression=zipfile.ZIP_DEFLATED) as
 shutil.copy("submission.zip", "submission_champion_high_score.zip")
 zip_kb = os.path.getsize("submission.zip") / 1024
 
-print(f"\\n🎉 SUCCESS! Created submission.zip ({zip_kb:.1f} KB) ready for Codabench upload!")
+print(f"\n🎉 SUCCESS! Created submission.zip ({zip_kb:.1f} KB) ready for Codabench upload!")
 print(f"Sample Predictions (first 5 cases):")
 for s_i, p_item in enumerate(test_predictions[:5]):
     print(f"  [{s_i+1:02d}] Case ID: {p_item['id']} -> Predicted Statutes: {p_item['pred']}")
-""")
-
-output_file = "P-5/CS781_Phase5_Single_Champion_High_Score.ipynb"
-with open(output_file, "w", encoding="utf-8") as f:
-    json.dump(notebook, f, indent=2)
-
-root_copy = "CS781_Phase5_Single_Champion_High_Score.ipynb"
-shutil.copy(output_file, root_copy)
-
-# Also copy as the main champion pipeline notebook so either file can be uploaded directly
-shutil.copy(output_file, "CS781_Phase5_Champion_Pipeline.ipynb")
-shutil.copy(output_file, "P-5/CS781_Phase5_Champion_Pipeline.ipynb")
-
-print(f"Successfully generated {output_file} and {root_copy}!")

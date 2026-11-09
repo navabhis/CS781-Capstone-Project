@@ -23,12 +23,12 @@ To maximize knowledge capacity while staying within low-compute limits, we desig
 ---
 
 ## 3. Files in this Directory
-- `CS781_Phase1_New_Champion_Base_Model.ipynb`: Automated, self-contained Jupyter notebook to train the HybridMoE base model from scratch on Kaggle/Colab GPU.
-- `build_phase1_base_model.py`: Standalone script to assemble and verify parameter counts of the HybridMoE architecture.
+- `phase1_model.ipynb`: Automated, self-contained Jupyter notebook to train the HybridMoE base model from scratch on Kaggle/Colab GPU.
+- `phase1_model.py`: Standalone script to assemble and verify parameter counts of the HybridMoE architecture.
 
 ---
 
 ## 4. How to Run
-1. Open `CS781_Phase1_New_Champion_Base_Model.ipynb` in Kaggle or Google Colab (GPU accelerator enabled).
+1. Open `phase1_model.ipynb` in Kaggle or Google Colab (GPU accelerator enabled).
 2. Attach the dataset `Exploration-Lab/CS-781-Capstone`.
 3. Execute **Run All**. The notebook will train the base model, perform evaluation sweeps, and serialize the champion weights (`champion_moe.pth`).

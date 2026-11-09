@@ -1,69 +1,4 @@
-import json
-import os
-
-notebook = {
-    "cells": [],
-    "metadata": {
-        "kernelspec": {
-            "display_name": "Python 3 (ipykernel)",
-            "language": "python",
-            "name": "python3"
-        },
-        "language_info": {
-            "codemirror_mode": {"name": "ipython", "version": 3},
-            "file_extension": ".py",
-            "mimetype": "text/x-python",
-            "name": "python",
-            "nbconvert_exporter": "python",
-            "pygments_lexer": "ipython3",
-            "version": "3.10.12"
-        }
-    },
-    "nbformat": 4,
-    "nbformat_minor": 4
-}
-
-def add_md(source):
-    notebook["cells"].append({
-        "cell_type": "markdown",
-        "metadata": {},
-        "source": [line + "\n" for line in source.strip().split("\n")]
-    })
-
-def add_code(source):
-    notebook["cells"].append({
-        "cell_type": "code",
-        "execution_count": None,
-        "metadata": {},
-        "outputs": [],
-        "source": [line + "\n" for line in source.strip().split("\n")]
-    })
-
-# ============================================================================
-# TITLE & OVERVIEW
-# ============================================================================
-add_md("""# CS-781 Capstone Project — Phase 4: Court Judgment Prediction (CJPE)
-## High-Speed Dual-Anchor Legal NLP Pipeline (~8 to 10 Minutes per Submission)
-### Fast Binary Verdict Prediction with Facts + Ratio Attention & PEFT
-
-**Target Objectives:**
-1. Document-level binary verdict prediction (`0` vs `1`) for legal court judgments.
-2. Dual-anchor representation: Captures the decisive legal signals — **Facts (Opening 512 tokens)** and **Judicial Ratio (Closing 512 tokens)**.
-3. Stratified class-balanced training (12,000 cases: 6,000 Label 0 + 6,000 Label 1) with high-throughput batching (`batch_size=16`), completing in **~8 to 10 minutes** per submission.
-4. Execution of the **6 mandatory submissions** (Section 10.2):
-   - **Run 1 (BitFit)**: Parameter-efficient bias tuning.
-   - **Run 2 (Layer Freezing)**: Frozen backbone baseline + trainable hierarchical aggregator.
-   - **Run 3 (Bottleneck Adapters)**: Houlsby/Pfeiffer series bottleneck adapters.
-   - **Run 4 (AdaLoRA)**: Adaptive singular-value low-rank matrix allocation.
-   - **Run 5 (Knowledge Distillation)**: Mandatory transfer from Pretrained MoE Teacher to Compact Student.
-   - **Run 6 (LoRMA Champion)**: Compulsory Multiplicative Adaptation ($h = W_0 x + \alpha B A W_0 x$) with cross-chunk attention.
-5. Class-Balanced Focal Loss ($\gamma = 1.5$) & post-hoc decision threshold optimization ($\theta^* \in [0.25, 0.75]$) to maximize strict **Macro-F1** on Codabench.
-""")
-
-# ============================================================================
-# CELL 1: Environment Setup
-# ============================================================================
-add_code("""# Step 0: Environment Setup & Deterministic Seeds
+# Step 0: Environment Setup & Deterministic Seeds
 import os
 import sys
 import gc
@@ -100,12 +35,11 @@ print(f"Device: {device}")
 if torch.cuda.is_available():
     print(f"GPU: {torch.cuda.get_device_name(0)}")
     print(f"GPU Memory: {torch.cuda.get_device_properties(0).total_memory / (1024**3):.2f} GB")
-""")
 
-# ============================================================================
-# CELL 2: Checkpoint Safeguard & Discovery
-# ============================================================================
-add_code("""# Step 1: Pretrained Phase 1 Backbone Checkpoint Discovery
+
+#======================================================================
+
+# Step 1: Pretrained Phase 1 Backbone Checkpoint Discovery
 SAVED_CKPT_PATH = "/kaggle/working/champion_moe.pth"
 
 def prepare_checkpoint():
@@ -149,12 +83,11 @@ else:
     print("=" * 65)
     print("⚠️ Checkpoint not found yet! Please attach Phase 1 dataset/model to Kaggle.")
     print("=" * 65)
-""")
 
-# ============================================================================
-# CELL 3: Hugging Face Data Ingestion
-# ============================================================================
-add_code("""# Step 2: Acquire Official Phase 4 CJPE Dataset (Local Input or Hugging Face Hub)
+
+#======================================================================
+
+# Step 2: Acquire Official Phase 4 CJPE Dataset (Local Input or Hugging Face Hub)
 HF_REPO_ID = "Exploration-Lab/CS-781-Capstone"
 
 # Retrieve Hugging Face Access Token from Kaggle Secrets if available
@@ -205,17 +138,16 @@ for rel_path in files_to_download:
         print(f"[Dataset] Downloaded from HF: {rel_path} -> {local_path}")
     except Exception as e:
         print(f"[Dataset] Download notice for {rel_path}: {e}")
-""")
 
-# ============================================================================
-# CELL 4: Data Parsing & Stratified Balanced Subsampling
-# ============================================================================
-add_code("""# Step 3: Parse Phase 4 CJPE Datasets & Apply Stratified Balanced Subsampling
+
+#======================================================================
+
+# Step 3: Parse Phase 4 CJPE Datasets & Apply Stratified Balanced Subsampling
 def parse_cjpe_file(file_path):
-    \"\"\"
+    """
     Parses Phase 4 CJPE files across list-of-dicts and dict-of-dicts formats.
     Returns: list of dicts: [{'id': str(doc_id), 'text': str(text), 'label': int(label)}]
-    \"\"\"
+    """
     if not file_path or not os.path.exists(file_path):
         return []
     with open(file_path, "r", encoding="utf-8") as f:
@@ -275,12 +207,11 @@ print(f"Active Stratified Training Set: {len(train_docs):,} (Label 0: {train_lab
 print(f"Full Validation Cases:          {len(dev_docs):,} (Label 0: {dev_labels.count(0):,}, Label 1: {dev_labels.count(1):,})")
 print(f"Full Test Cases:                {len(test_docs):,}")
 print("=" * 65)
-""")
 
-# ============================================================================
-# CELL 5: Phase 1 Pretrained Backbone (HybridMoE)
-# ============================================================================
-add_code("""# Step 4: Phase 1 Pretrained Backbone (Hybrid Mixture-of-Experts Architecture)
+
+#======================================================================
+
+# Step 4: Phase 1 Pretrained Backbone (Hybrid Mixture-of-Experts Architecture)
 class StandardExpert(nn.Module):
     def __init__(self, dim):
         super().__init__()
@@ -391,21 +322,20 @@ def load_phase1_backbone(checkpoint_path, device="cpu"):
     backbone.load_state_dict(clean_state_dict, strict=False)
     print(f"Successfully loaded Phase 1 backbone weights from: {checkpoint_path}")
     return backbone
-""")
 
-# ============================================================================
-# CELL 6: Hierarchical Document Classifier & PEFT Adaptation Suite
-# ============================================================================
-add_code("""# Step 5: Hierarchical Document Classifier & PEFT Adaptation Suite
+
+#======================================================================
+
+# Step 5: Hierarchical Document Classifier & PEFT Adaptation Suite
 MAX_CHUNKS = 2  # Dual-Anchor representation: Facts (Head 512) + Ratio Decidendi (Tail 512) = 1,024 tokens
 CHUNK_LEN = 512
 
 class HierarchicalMoEForCJPE(nn.Module):
-    \"\"\"
+    """
     Dual-Anchor Hierarchical Long-Document Court Judgment Classifier.
     Encodes Chunk 0 (Facts) and Chunk 1 (Ratio) through the Phase 1 MoE backbone,
     applies learned anchor embeddings and cross-anchor attention to decide the final judgment.
-    \"\"\"
+    """
     def __init__(self, backbone, num_classes=2, max_chunks=MAX_CHUNKS, dropout=0.15):
         super().__init__()
         self.backbone = backbone
@@ -472,10 +402,10 @@ class HierarchicalMoEForCJPE(nn.Module):
         return logits
 
 class CompactLegalStudentForCJPE(nn.Module):
-    \"\"\"
+    """
     Mandatory Knowledge Distillation Student (Section 10.2.2).
     A 3-layer dense architecture with hidden size 384 and Siamese contrastive dual-anchor attention.
-    \"\"\"
+    """
     def __init__(self, vocab_count=50257, embed_size=384, heads=6, layers=3, num_classes=2, max_chunks=MAX_CHUNKS, dropout=0.15):
         super().__init__()
         self.embed_size = embed_size
@@ -546,7 +476,7 @@ class LoRMAAdapter(nn.Module):
         return x + self.lorma_B(self.lorma_A(self.dropout(x))) * self.alpha
 
 class LoRMALinear(nn.Module):
-    \"\"\"LoRMA: Low-Rank Multiplicative Adaptation (Bihany et al., ACL 2025)\"\"\"
+    """LoRMA: Low-Rank Multiplicative Adaptation (Bihany et al., ACL 2025)"""
     def __init__(self, original_linear, r=16, alpha=1.0, dropout=0.05):
         super().__init__()
         self.original_linear = original_linear
@@ -571,7 +501,7 @@ class LoRMALinear(nn.Module):
         return y0 + self.lorma_B(self.lorma_A(self.dropout(y0))) * self.alpha
 
 class BottleneckAdapter(nn.Module):
-    \"\"\"Houlsby/Pfeiffer Series Bottleneck Adapter (Section 10.2.1)\"\"\"
+    """Houlsby/Pfeiffer Series Bottleneck Adapter (Section 10.2.1)"""
     def __init__(self, dim, bottleneck_dim=64):
         super().__init__()
         self.adapter = nn.Sequential(
@@ -588,7 +518,7 @@ class BottleneckAdapter(nn.Module):
         return x + self.adapter(x)
 
 class AdaLoRALinear(nn.Module):
-    \"\"\"AdaLoRA: Adaptive Low-Rank Adaptation via SVD parameterization (Zhang et al., ICLR 2023)\"\"\"
+    """AdaLoRA: Adaptive Low-Rank Adaptation via SVD parameterization (Zhang et al., ICLR 2023)"""
     def __init__(self, original_linear, r=16, alpha=32.0, dropout=0.05):
         super().__init__()
         self.original_linear = original_linear
@@ -618,10 +548,10 @@ class AdaLoRALinear(nn.Module):
         return res + self.lora_Q(p_scaled) * self.scaling
 
 def configure_cjpe_adaptation(model, method="lorma", r=16):
-    \"\"\"
+    """
     Configures adaptation across the 6 Phase 4 methodologies (Section 10.2.1):
     'bitfit', 'layer_freezing', 'bottleneck_adapter', 'adalora', 'distill', 'lorma'
-    \"\"\"
+    """
     method = method.lower()
     
     # Aggregator and classification head are always trainable
@@ -679,18 +609,17 @@ def configure_cjpe_adaptation(model, method="lorma", r=16):
     total = sum(p.numel() for p in model.parameters())
     print(f"[PEFT Config: {method.upper()}] Trainable Parameters: {trainable:,} / {total:,} ({100*trainable/total:.2f}%)")
     return model
-""")
 
-# ============================================================================
-# CELL 7: Dataset & Hierarchical Collation
-# ============================================================================
-add_code("""# Step 6: Dual-Anchor Document Dataset (Facts + Ratio)
+
+#======================================================================
+
+# Step 6: Dual-Anchor Document Dataset (Facts + Ratio)
 class CJPEDocumentDataset(Dataset):
-    \"\"\"
+    """
     Dual-Anchor Document Dataset for Court Judgment Prediction.
     Extracts Chunk 0 (Facts: head 512) and Chunk 1 (Ratio: tail 512),
     capturing >95% of verdict-predictive legal signals with maximum GPU throughput.
-    \"\"\"
+    """
     def __init__(self, doc_list, tokenizer, max_chunks=MAX_CHUNKS, chunk_len=CHUNK_LEN):
         self.samples = []
         self.tokenizer = tokenizer
@@ -751,17 +680,16 @@ tokenizer = AutoTokenizer.from_pretrained("openai-community/gpt2")
 if tokenizer.pad_token is None:
     tokenizer.pad_token = tokenizer.eos_token
 tokenizer.model_max_length = 100000
-""")
 
-# ============================================================================
-# CELL 8: Evaluator & Loss Functions
-# ============================================================================
-add_code("""# Step 7: Class-Balanced Focal Loss & Strict Binary Macro-F1 Evaluator
+
+#======================================================================
+
+# Step 7: Class-Balanced Focal Loss & Strict Binary Macro-F1 Evaluator
 class ClassBalancedFocalLoss(nn.Module):
-    \"\"\"
+    """
     Class-Balanced Focal Loss (Lin et al. 2017) with Label Smoothing.
     Penalizes well-classified majority judgments and regularizes overconfident predictions.
-    \"\"\"
+    """
     def __init__(self, weights=None, gamma=1.5, label_smoothing=0.05):
         super().__init__()
         self.weights = weights
@@ -782,10 +710,10 @@ class ClassBalancedFocalLoss(nn.Module):
         return loss.mean()
 
 def evaluate_cjpe_macro_f1(gold_labels, pred_probs, candidate_thresholds=None):
-    \"\"\"
+    """
     Computes strict Macro-F1 across binary classes {0, 1}.
     Sweeps candidate decision thresholds theta in [0.25, 0.75] with anti-collapse safety guards.
-    \"\"\"
+    """
     if candidate_thresholds is None:
         candidate_thresholds = np.arange(0.25, 0.76, 0.02).round(2).tolist()
         
@@ -835,12 +763,11 @@ def evaluate_cjpe_macro_f1(gold_labels, pred_probs, candidate_thresholds=None):
         best_breakdown = {"macro_f1": 0.50, "f1_0": 0.50, "f1_1": 0.50, "theta": best_theta}
         
     return best_f1, best_theta, best_breakdown
-""")
 
-# ============================================================================
-# CELL 9: Fast 2-Epoch Training Loop with Live Step Logging (~8 mins)
-# ============================================================================
-add_code("""# Step 8: High-Speed Training Loop (~8 to 10 mins / submission)
+
+#======================================================================
+
+# Step 8: High-Speed Training Loop (~8 to 10 mins / submission)
 # =============================================================================
 # SELECT YOUR EXPERIMENT METHOD (Choose 1 of the required):
 #   - 'distill'           : Submission P4-5 (COMPULSORY DISTILLATION - HIGHEST PERFORMER)
@@ -1044,7 +971,7 @@ for epoch in range(1, EPOCHS + 1):
             
     val_f1, val_theta, val_breakdown = evaluate_cjpe_macro_f1(val_gold, val_probs)
     
-    print(f"\\n>>> Epoch [{epoch:02d}/{EPOCHS:02d}] COMPLETE | Train Loss: {avg_loss:.4f} | Val Macro-F1: {val_f1:.4f} (F1_0: {val_breakdown.get('f1_0',0):.3f}, F1_1: {val_breakdown.get('f1_1',0):.3f}, Opt Theta: {val_theta:.2f})\\n")
+    print(f"\n>>> Epoch [{epoch:02d}/{EPOCHS:02d}] COMPLETE | Train Loss: {avg_loss:.4f} | Val Macro-F1: {val_f1:.4f} (F1_0: {val_breakdown.get('f1_0',0):.3f}, F1_1: {val_breakdown.get('f1_1',0):.3f}, Opt Theta: {val_theta:.2f})\n")
     
     if val_f1 > best_f1:
         best_f1 = float(val_f1)
@@ -1060,12 +987,11 @@ for epoch in range(1, EPOCHS + 1):
 print("=" * 65)
 print(f"TRAINING COMPLETE! Best Validation Macro-F1: {best_f1:.4f} with Threshold {best_theta:.2f}")
 print("=" * 65)
-""")
 
-# ============================================================================
-# CELL 10: Final Test Inference & Packaging (~30 seconds)
-# ============================================================================
-add_code("""# Step 9: Final Test Inference & Codabench Packaging
+
+#======================================================================
+
+# Step 9: Final Test Inference & Codabench Packaging
 print(f"Generating Test Predictions for {EXPERIMENT_METHOD.upper()}...")
 
 if os.path.exists(best_model_path):
@@ -1165,20 +1091,19 @@ if validation_passed:
         zipf.write("prediction.json", arcname="prediction.json")
         
     zip_size_kb = os.path.getsize("submission.zip") / 1024
-    print(f"\\n🎉 SUCCESS! Created submission.zip ({zip_size_kb:.1f} KB) with prediction.json at root.")
+    print(f"\n🎉 SUCCESS! Created submission.zip ({zip_size_kb:.1f} KB) with prediction.json at root.")
     
     # Sample Output Inspection
-    print(f"\\nSample Predictions (first 5 cases):")
+    print(f"\nSample Predictions (first 5 cases):")
     for s_i, p_item in enumerate(test_predictions[:5]):
         print(f"  [{s_i+1:02d}] Case ID: {p_item['id']} -> Predicted Outcome: {p_item['pred']}")
 else:
     raise ValueError("Submission validation failed! Please check schema.")
-""")
 
-# ============================================================================
-# CELL 11: Benchmark Summary Table
-# ============================================================================
-add_code("""# Step 10: Benchmark Table Entry Generator
+
+#======================================================================
+
+# Step 10: Benchmark Table Entry Generator
 print(f"============================================================")
 print(f"SUBMISSION SUMMARY FOR CAPSTONE REPORT (PHASE 4 - CJPE)")
 print(f"============================================================")
@@ -1191,12 +1116,11 @@ print(f"Batch Size:        {BATCH_SIZE}")
 print(f"Learning Rate:     {LEARNING_RATE:.2e}")
 print(f"File Produced:     submission.zip (contains prediction.json)")
 print(f"============================================================")
-""")
 
-# ============================================================================
-# CELL 12: Multi-Model Probability Averaging Ensemble (Optional Booster)
-# ============================================================================
-add_code("""# Step 11: Multi-Model Soft Voting Ensemble (Optional Final Score Booster)
+
+#======================================================================
+
+# Step 11: Multi-Model Soft Voting Ensemble (Optional Final Score Booster)
 import glob
 
 prob_files = sorted(glob.glob("probs_*.json"))
@@ -1231,15 +1155,8 @@ if len(prob_files) >= 2:
         
     ens_0 = sum(1 for p in ensemble_preds if p["pred"] == 0)
     ens_1 = sum(1 for p in ensemble_preds if p["pred"] == 1)
-    print(f"\\n🔥 SUCCESS! Created submission.zip & submission_ensemble.zip ({os.path.getsize('submission.zip')/1024:.1f} KB)")
+    print(f"\n🔥 SUCCESS! Created submission.zip & submission_ensemble.zip ({os.path.getsize('submission.zip')/1024:.1f} KB)")
     print(f"  Ensemble Outcome Distribution: 0 -> {ens_0} ({100*ens_0/len(ensemble_preds):.1f}%), 1 -> {ens_1} ({100*ens_1/len(ensemble_preds):.1f}%)")
     print(f"  Ensemble Threshold Cutoff: {cutoff:.4f} (Top {100*target_p1_ratio:.0f}% classified as Class 1)")
 else:
     print("Ensemble note: Run at least 2 methods (e.g. distill + lorma) to build a multi-model blended ensemble.")
-""")
-
-output_file = "P-4/CS781_Phase4_Champion_Pipeline.ipynb"
-with open(output_file, "w", encoding="utf-8") as f:
-    json.dump(notebook, f, indent=2)
-
-print(f"Generated {output_file} successfully!")

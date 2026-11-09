@@ -5,7 +5,7 @@
 **Primary Metric:** **Micro-F1@7**  
 **Secondary Metrics:** **Micro-Precision@7**, **Micro-Recall@7**  
 **Starting Backbone:** Phase 1 Hybrid Mixture-of-Experts (`champion_moe.pth` / `moe_backup_epoch4_COMPLETE.pth`)  
-**Main Execution Notebook:** [`CS781_Phase7_Champion_Pipeline.ipynb`](../CS781_Phase7_Champion_Pipeline.ipynb) (also mirrored at `P-7/CS781_Phase7_Champion_Pipeline.ipynb`)
+**Main Execution Notebook:** [`phase7_model.ipynb`](../phase7_model.ipynb) (also mirrored at `P-7/phase7_model.ipynb`)
 
 ---
 
@@ -99,7 +99,7 @@ In Phase 7, given a query legal case, the system must understand its legal issue
 
 ## 5. Kaggle Execution Instructions (Automated One-Click)
 
-1. Upload [`CS781_Phase7_Champion_Pipeline.ipynb`](../CS781_Phase7_Champion_Pipeline.ipynb) to Kaggle.
+1. Upload [`phase7_model.ipynb`](../phase7_model.ipynb) to Kaggle.
 2. Under Kaggle settings:
    * **Accelerator:** GPU T4 x2 or GPU P100.
    * **Internet:** ON (downloads `train`, `dev`, `test` splits from Hugging Face).

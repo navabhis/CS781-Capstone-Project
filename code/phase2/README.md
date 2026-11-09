@@ -17,16 +17,16 @@
 ---
 
 ## 3. Files in this Directory
-- `CS781_Phase2_Champion_Pipeline.ipynb`: Self-contained runnable Jupyter/Kaggle notebook for training and evaluating Phase 2 champion models.
+- `phase2_model.ipynb`: Self-contained runnable Jupyter/Kaggle notebook for training and evaluating Phase 2 champion models.
 - `phase2_model.py`: Pure PyTorch definition of `HybridMoE` token tagging head and PEFT modules.
 - `phase2_data.py`: Dataset loader, sliding-window chunker, and BPE character-to-token offset mapping.
 - `phase2_evaluator.py`: Official strict Macro-F1 evaluator matching exact character offsets.
-- `phase2_train_and_distill.py`: Modular training loop supporting FFT, LoRMA, LoRA, BitFit, and Knowledge Distillation.
+- `phase2_train.py`: Modular training loop supporting FFT, LoRMA, LoRA, BitFit, and Knowledge Distillation.
 
 ---
 
 ## 4. How to Run
 ```bash
-python phase2_train_and_distill.py --method lorma --epochs 5 --lr 2e-4
+python phase2_train.py --method lorma --epochs 5 --lr 2e-4
 ```
 Outputs `prediction.json` and packages `submission.zip` ready for Codabench.

@@ -1,80 +1,4 @@
-import json
-import os
-import shutil
-
-notebook = {
-    "cells": [],
-    "metadata": {
-        "kernelspec": {
-            "display_name": "Python 3 (ipykernel)",
-            "language": "python",
-            "name": "python3"
-        },
-        "language_info": {
-            "codemirror_mode": {"name": "ipython", "version": 3},
-            "file_extension": ".py",
-            "mimetype": "text/x-python",
-            "name": "python",
-            "nbconvert_exporter": "python",
-            "pygments_lexer": "ipython3",
-            "version": "3.10.12"
-        }
-    },
-    "nbformat": 4,
-    "nbformat_minor": 4
-}
-
-def add_md(source):
-    notebook["cells"].append({
-        "cell_type": "markdown",
-        "metadata": {},
-        "source": [line + "\n" for line in source.strip().split("\n")]
-    })
-
-def add_code(source):
-    notebook["cells"].append({
-        "cell_type": "code",
-        "execution_count": None,
-        "metadata": {},
-        "outputs": [],
-        "source": [line + "\n" for line in source.strip().split("\n")]
-    })
-
-# ============================================================================
-# TITLE & ARCHITECTURE OVERVIEW
-# ============================================================================
-add_md("""# CS-781 Capstone Project — Phase 1: Foundation Legal LLM Pretraining
-## High-Capacity Hybrid Mixture-of-Experts (MoE) Architecture (~210M Parameters, 90M Active)
-### Fully Standalone, Pure PyTorch Pretraining Pipeline for Kaggle GPU (Dual T4 or Single P100/T4)
-
----
-
-### Project Governance & Course Rules Compliance:
-1. **Strict Prohibition on Hugging Face Model Classes:**
-   - Pretrained model classes (`AutoModelForCausalLM`, `MistralForCausalLM`, `GPT2LMHeadModel`) are **STRICTLY PROHIBITED**.
-   - This entire backbone is implemented using **raw PyTorch primitives** (`nn.Module`, `nn.MultiheadAttention`, `nn.Linear`, `nn.Embedding`, `nn.LayerNorm`).
-   - Hugging Face is used **ONLY** for tokenization (`AutoTokenizer.from_pretrained("openai-community/gpt2")`).
-2. **Seamless Downstream Compatibility:**
-   - The state-dict key hierarchy and parameter shapes are **100% plug-and-play compatible** with all subsequent project phases:
-     - **Phase 2:** Legal Named Entity Recognition (L-NER)
-     - **Phase 3:** Rhetorical Role Prediction (RR)
-     - **Phase 4:** Court Judgment Prediction & Explanation (CJPE)
-     - **Phase 5:** Legal Statute Identification (LSI)
-   - Exposes `get_hidden_states(x, causal=False)` so all downstream PEFT adapters (LoRMA, AdaLoRA, BitFit, Bottleneck Adapters, Distillation) attach seamlessly.
-3. **Optimized for Kaggle GPU Training:**
-   - Mixed precision AMP (`torch.amp.autocast('cuda')` with `GradScaler`).
-   - Contiguous token-block packing (zero wasted pad tokens).
-   - Dual T4 `nn.DataParallel` acceleration with automatic fallback to single GPU.
-   - Cosine learning rate scheduling with linear warmup and gradient clipping.
-   - Saves clean, un-prefixed checkpoints: `champion_moe.pth` and `moe_backup_epoch4_COMPLETE.pth`.
-   - Advanced autoregressive text generation with dynamic repetition penalties (eliminates noun-looping).
-   - Full Phase 1 test evaluation and Codabench `submission.zip` packaging.
-""")
-
-# ============================================================================
-# CELL 1: Environment Setup, Seeds & Hardware Discovery
-# ============================================================================
-add_code("""# Step 0: Environment Setup, Deterministic Seeds & GPU Detection
+# Step 0: Environment Setup, Deterministic Seeds & GPU Detection
 import os
 import sys
 import gc
@@ -116,12 +40,11 @@ if torch.cuda.is_available():
     for g_i in range(num_gpus):
         print(f"  GPU {g_i}: {torch.cuda.get_device_name(g_i)} ({torch.cuda.get_device_properties(g_i).total_memory / (1024**3):.2f} GB)")
 print("=" * 70)
-""")
 
-# ============================================================================
-# CELL 2: Pretraining Hyperparameters & Kaggle Paths
-# ============================================================================
-add_code("""# Step 1: Pretraining Hyperparameters & Configuration
+
+#======================================================================
+
+# Step 1: Pretraining Hyperparameters & Configuration
 # Official Hugging Face Repository & File Paths
 HF_REPO_ID = "Exploration-Lab/CS-781-Capstone"
 TRAIN_FILE = "Phase_1_Pretraining/Train/train_supreme_court.json"
@@ -155,12 +78,11 @@ PREDICTION_PATH = os.path.join(OUTPUT_DIR, "prediction.json")
 SUBMISSION_ZIP = os.path.join(OUTPUT_DIR, "submission.zip")
 
 print("Pretraining Configuration Loaded Successfully.")
-""")
 
-# ============================================================================
-# CELL 3: Hugging Face Data Acquisition
-# ============================================================================
-add_code("""# Step 2: Download Official Pretraining Corpus from Hugging Face
+
+#======================================================================
+
+# Step 2: Download Official Pretraining Corpus from Hugging Face
 hf_token = os.environ.get("HF_TOKEN", None)
 try:
     from kaggle_secrets import UserSecretsClient
@@ -210,12 +132,11 @@ for split_name, rel_path in data_files.items():
         print(f"[Dataset] Downloaded from HF: {rel_path} -> {downloaded}")
     except Exception as e:
         print(f"[Dataset] Download notice for {rel_path}: {e}")
-""")
 
-# ============================================================================
-# CELL 4: High-Throughput Tokenization & Contiguous Block Packing
-# ============================================================================
-add_code("""# Step 3: High-Throughput Tokenization & Contiguous Block Packing
+
+#======================================================================
+
+# Step 3: High-Throughput Tokenization & Contiguous Block Packing
 print("Initializing GPT-2 Tokenizer...")
 tokenizer = AutoTokenizer.from_pretrained("openai-community/gpt2")
 if tokenizer.pad_token is None:
@@ -315,14 +236,13 @@ val_loader = DataLoader(
 )
 
 print(f"DataLoaders ready! Batches per epoch: {len(train_loader):,}")
-""")
 
-# ============================================================================
-# CELL 5: Pure PyTorch Hybrid MoE Architecture
-# ============================================================================
-add_code("""# Step 4: Pure PyTorch Hybrid Mixture-of-Experts Architecture
+
+#======================================================================
+
+# Step 4: Pure PyTorch Hybrid Mixture-of-Experts Architecture
 class StandardExpert(nn.Module):
-    \"\"\"Standard Feed-Forward Expert (dim -> 4*dim -> dim with GELU).\"\"\"
+    """Standard Feed-Forward Expert (dim -> 4*dim -> dim with GELU)."""
     def __init__(self, dim):
         super().__init__()
         self.net = nn.Sequential(
@@ -335,7 +255,7 @@ class StandardExpert(nn.Module):
         return self.net(x)
 
 class MoERouter(nn.Module):
-    \"\"\"Top-1 Gating Router with auxiliary load-balancing tracking.\"\"\"
+    """Top-1 Gating Router with auxiliary load-balancing tracking."""
     def __init__(self, dim, num_experts=4):
         super().__init__()
         self.gate = nn.Linear(dim, num_experts, bias=False)
@@ -350,7 +270,7 @@ class MoERouter(nn.Module):
         return weights, indices
 
 class MoELayer(nn.Module):
-    \"\"\"Mixture-of-Experts Layer with Top-1 routing across 4 legal experts.\"\"\"
+    """Mixture-of-Experts Layer with Top-1 routing across 4 legal experts."""
     def __init__(self, dim, num_experts=4):
         super().__init__()
         self.num_experts = num_experts
@@ -373,11 +293,11 @@ class MoELayer(nn.Module):
         return out.view(b, seq, d)
 
 class HybridBlock(nn.Module):
-    \"\"\"
+    """
     Pre-LN Transformer Decoder Block.
     Alternates between Standard Dense FFN (even layers) and MoE Layer (odd layers).
     Includes hookable adapter slots for downstream PEFT compatibility.
-    \"\"\"
+    """
     def __init__(self, dim, heads, is_moe=False):
         super().__init__()
         self.norm1 = nn.LayerNorm(dim)
@@ -406,13 +326,13 @@ class HybridBlock(nn.Module):
         return x
 
 class HybridMoE(nn.Module):
-    \"\"\"
+    """
     Full Hybrid Mixture-of-Experts Legal Causal Language Model.
     - 6 Transformer Decoder Blocks (768 hidden dimension, 12 attention heads)
     - Alternating Dense / MoE layers (4 experts, Top-1 routing)
     - Weight-Tied Token Embedding and Output LM Head
     - Exposes get_hidden_states(x, causal=False) for downstream tasks
-    \"\"\"
+    """
     def __init__(self, vocab_count=VOCAB_SIZE, embed_size=EMBED_SIZE, heads=NUM_HEADS, layers=NUM_LAYERS):
         super().__init__()
         self.embed_size = embed_size
@@ -444,7 +364,7 @@ class HybridMoE(nn.Module):
         return self.output_head(h)
 
     def compute_aux_loss(self):
-        \"\"\"Switch Transformer / Mixtral auxiliary load balancing loss.\"\"\"
+        """Switch Transformer / Mixtral auxiliary load balancing loss."""
         aux_loss = 0.0
         count = 0
         for block in self.blocks:
@@ -479,12 +399,11 @@ print(f"  Weight Tying         : Enabled (tok_emb.weight == output_head.weight)"
 print("=" * 70)
 
 model.to(device)
-""")
 
-# ============================================================================
-# CELL 6: Optimizer, Cosine Warmup Scheduler & AMP Setup
-# ============================================================================
-add_code("""# Step 5: Optimizer, Cosine Scheduler with Warmup & Mixed Precision Setup
+
+#======================================================================
+
+# Step 5: Optimizer, Cosine Scheduler with Warmup & Mixed Precision Setup
 # Parameter group separation: Apply weight decay only to 2D weights (skip LayerNorm and biases)
 decay_params = []
 no_decay_params = []
@@ -535,12 +454,11 @@ print(f"Linear Warmup Steps     : {warmup_steps:,}")
 print(f"Effective Batch Size    : {BATCH_SIZE * GRAD_ACCUM_STEPS * max(1, num_gpus)} sequences")
 print("Optimizer & Schedulers Ready.")
 print("=" * 70)
-""")
 
-# ============================================================================
-# CELL 7: Master Pretraining & Validation Loop
-# ============================================================================
-add_code("""# Step 6: Master Pretraining & Validation Loop
+
+#======================================================================
+
+# Step 6: Master Pretraining & Validation Loop
 def evaluate_perplexity(eval_model, data_loader):
     eval_model.eval()
     total_loss = 0.0
@@ -632,12 +550,12 @@ for epoch in range(1, EPOCHS + 1):
     loss_history["val_ppl"].append(val_ppl)
 
     epoch_min = (time.time() - t0_epoch) / 60.0
-    print("\\n" + "-" * 75)
+    print("\n" + "-" * 75)
     print(f">>> EPOCH [{epoch:02d}/{EPOCHS:02d}] FINISHED in {epoch_min:.1f} mins:")
     print(f"    Train Loss      : {avg_train_loss:.4f}")
     print(f"    Validation Loss : {val_loss:.4f}")
     print(f"    Validation PPL  : {val_ppl:.2f}")
-    print("-" * 75 + "\\n")
+    print("-" * 75 + "\n")
 
     # Save Checkpoint (Both standard champion_moe.pth and epoch backup)
     # Always save state_dict WITHOUT 'module.' prefix for clean downstream compatibility!
@@ -676,12 +594,11 @@ total_mins = (time.time() - t0_train) / 60.0
 print("=" * 75)
 print(f"PRETRAINING FINISHED in {total_mins:.1f} minutes! Best Validation Loss: {best_val_loss:.4f}")
 print("=" * 75)
-""")
 
-# ============================================================================
-# CELL 8: Plot Training Curve
-# ============================================================================
-add_code("""# Step 7: Plot Training & Validation Loss Curves
+
+#======================================================================
+
+# Step 7: Plot Training & Validation Loss Curves
 import matplotlib.pyplot as plt
 
 plt.figure(figsize=(10, 5))
@@ -697,12 +614,11 @@ plot_path = os.path.join(OUTPUT_DIR, "training_validation_loss.png")
 plt.savefig(plot_path, dpi=200, bbox_inches="tight")
 plt.show()
 print(f"Loss plot saved to: {plot_path}")
-""")
 
-# ============================================================================
-# CELL 9: Advanced Autoregressive Generation (Anti-Looping)
-# ============================================================================
-add_code("""# Step 8: Advanced Autoregressive Generation Engine (Anti-Looping)
+
+#======================================================================
+
+# Step 8: Advanced Autoregressive Generation Engine (Anti-Looping)
 def generate_legal_text(
     model,
     tokenizer,
@@ -714,13 +630,13 @@ def generate_legal_text(
     repetition_penalty: float = 1.15,
     dynamic_freq_penalty: float = 0.05
 ) -> str:
-    \"\"\"
+    """
     Robust autoregressive generation eliminating the Phase 1 'Noun-Looping' bug:
     - Temperature scaling (0.75)
     - Top-K (40) and Top-P (0.90) nucleus truncation
     - Dynamic frequency penalty penalizing previously generated tokens
     - Context clamping to 512 tokens
-    \"\"\"
+    """
     model.eval()
     input_ids = tokenizer.encode(prompt, add_special_tokens=False)
     generated = list(input_ids)
@@ -801,15 +717,14 @@ for p_i, p_text in enumerate(test_prompts):
         top_k=40,
         top_p=0.90
     )
-    print(f"\\n[Prompt {p_i+1}]: {p_text}")
+    print(f"\n[Prompt {p_i+1}]: {p_text}")
     print(f"[Generated]: {completion}")
 print("=" * 75)
-""")
 
-# ============================================================================
-# CELL 10: Phase 1 Codabench Submission Generator & Verification
-# ============================================================================
-add_code("""# Step 9: Phase 1 Codabench Test Generation & Packaging
+
+#======================================================================
+
+# Step 9: Phase 1 Codabench Test Generation & Packaging
 test_file_path = local_paths.get("test", "")
 if os.path.exists(test_file_path):
     print(f"Generating Phase 1 Codabench Predictions on: {test_file_path}...")
@@ -857,7 +772,7 @@ if os.path.exists(test_file_path):
     shutil.copy(SUBMISSION_ZIP, "/kaggle/working/submission.zip")
     zip_size_kb = os.path.getsize(SUBMISSION_ZIP) / 1024
 
-    print("\\n" + "=" * 75)
+    print("\n" + "=" * 75)
     print("PHASE 1 SUBMISSION CREATED SUCCESSFULLY:")
     print(f"  prediction.json : {PREDICTION_PATH}")
     print(f"  submission.zip  : {SUBMISSION_ZIP} ({zip_size_kb:.1f} KB)")
@@ -865,12 +780,11 @@ if os.path.exists(test_file_path):
     print("=" * 75)
 else:
     print(f"Test file not available at {test_file_path}. Skipping Codabench packaging.")
-""")
 
-# ============================================================================
-# CELL 11: Final Master Checkpoint Verification & Downstream Handshake
-# ============================================================================
-add_code("""# Step 10: Final Master Checkpoint Verification & Downstream Handshake
+
+#======================================================================
+
+# Step 10: Final Master Checkpoint Verification & Downstream Handshake
 print("=" * 75)
 print("FINAL BASE MODEL CHECKPOINT INVENTORY & DOWNSTREAM READINESS")
 print("=" * 75)
@@ -893,15 +807,8 @@ with torch.no_grad():
     hidden = test_loader_backbone.get_hidden_states(dummy_tokens, causal=False)
 assert hidden.shape == (2, 512, EMBED_SIZE), f"Shape mismatch: {hidden.shape}"
 
-print("\\n✅ DOWNSTREAM HANDSHAKE TEST PASSED 100%:")
+print("\n✅ DOWNSTREAM HANDSHAKE TEST PASSED 100%:")
 print(f"  1. State-dict keys strictly match HybridMoE architecture.")
 print(f"  2. get_hidden_states(x, causal=False) produces shape (batch, 512, {EMBED_SIZE}).")
 print(f"  3. Compatible out-of-the-box with Phase 2 (NER), Phase 3 (RR), Phase 4 (CJPE), and Phase 5 (LSI)!")
 print("=" * 75)
-""")
-
-output_file = "CS781_Phase1_New_Champion_Base_Model.ipynb"
-with open(output_file, "w", encoding="utf-8") as f:
-    json.dump(notebook, f, indent=2)
-
-print(f"Successfully generated {output_file}!")

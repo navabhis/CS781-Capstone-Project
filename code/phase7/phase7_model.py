@@ -1,84 +1,4 @@
-import json
-import os
-import shutil
-
-notebook = {
-    "cells": [],
-    "metadata": {
-        "kernelspec": {
-            "display_name": "Python 3 (ipykernel)",
-            "language": "python",
-            "name": "python3"
-        },
-        "language_info": {
-            "codemirror_mode": {"name": "ipython", "version": 3},
-            "file_extension": ".py",
-            "mimetype": "text/x-python",
-            "name": "python",
-            "nbconvert_exporter": "python",
-            "pygments_lexer": "ipython3",
-            "version": "3.10.12"
-        }
-    },
-    "nbformat": 4,
-    "nbformat_minor": 4
-}
-
-def add_md(source):
-    notebook["cells"].append({
-        "cell_type": "markdown",
-        "metadata": {},
-        "source": [line + "\n" for line in source.strip().split("\n")]
-    })
-
-def add_code(source):
-    notebook["cells"].append({
-        "cell_type": "code",
-        "execution_count": None,
-        "metadata": {},
-        "outputs": [],
-        "source": [line + "\n" for line in source.strip().split("\n")]
-    })
-
-# ============================================================================
-# TITLE & OVERVIEW
-# ============================================================================
-add_md("""# CS-781 Capstone Project — Phase 7: Prior Case Retrieval (PCR)
-## Champion High-Performance Multi-Method Pipeline (Targeting Micro-F1@7 >= 0.55–0.70+)
-### Pure PyTorch Dual-Encoder Architecture with Hybrid Neural-Lexical Representation & Reciprocal Rank Fusion
-
----
-
-### Project Governance & Course Rules Compliance:
-1. **Strict Prohibition on Hugging Face Model Classes:**
-   - Hugging Face model classes (`AutoModel`, `BertModel`, `DPRQuestionEncoder`, `SentenceTransformer`, etc.) are **STRICTLY PROHIBITED**.
-   - All backbones, PEFT adapters, attention layers, and projection heads are implemented using **pure PyTorch primitives** (`torch.nn.Module`, `torch.nn.MultiheadAttention`, `torch.nn.Linear`, `torch.nn.Embedding`, `torch.nn.LayerNorm`).
-   - Hugging Face is used **ONLY** for tokenization (`AutoTokenizer.from_pretrained("openai-community/gpt2")`).
-2. **Phase 1 Foundation Model Starting Point:**
-   - Every experiment builds upon the Phase 1 Legal Language Model backbone (`champion_moe.pth` / `moe_backup_epoch4_COMPLETE.pth`).
-   - Adapts the 6-layer Hybrid Mixture-of-Experts (MoE) model into a bidirectional dual-encoder representation model via attention-masked mean pooling and representation projection.
-3. **Mandatory 6-Experiment Rule (Rubric Section 13.2):**
-   - **Method 1 (`bitfit` - P7-1):** Bias-only fine-tuning (~0.1% trainable parameters).
-   - **Method 2 (`layer_freezing` - P7-2):** Freezes lower 4 layers, fine-tunes top 2 blocks + projection head.
-   - **Method 3 (`bottleneck_adapter` - P7-3):** Series bottleneck adapters ($768 \\to 64 \\to 768$ with GELU) in attention and FFN blocks.
-   - **Method 4 (`adalora` - P7-4):** Adaptive Low-Rank SVD parameterization with dynamic rank allocation.
-   - **Method 5 (`lorma` - P7-5):** **COMPULSORY PEFT CHAMPION:** Low-Rank Multiplicative Adaptation ($h = W_0 x + \\alpha \\cdot B(A(W_0 x))$).
-   - **Method 6 (`distill` - P7-6):** **COMPULSORY KNOWLEDGE DISTILLATION:** Distills from the fine-tuned LoRMA dual-encoder into a compact 3-layer student model (`CompactLegalStudentForPCR`).
-   - **Bonus Method (`ensemble`):** Reciprocal Rank Fusion (RRF) across top models -> `submission_(ensemble).zip` and root `submission.zip`.
-4. **Strict Schema & Top-7 Invariants (Section 13.3.5 & 13.4):**
-   - `prediction.json` at root of `submission.zip`.
-   - JSON dictionary mapping each query ID to **EXACTLY 7 UNIQUE** candidate case IDs:
-     `{"query_id": ["cand_1", "cand_2", "cand_3", "cand_4", "cand_5", "cand_6", "cand_7"]}`
-   - Candidate IDs must belong strictly to the corresponding `test_candidates.json` pool.
-   - Ordered from highest to lowest predicted relevance.
-5. **Automated One-Click Execution:**
-   - Click **"Run All"**: Automatically executes all 6 methods back-to-back, manages GPU memory, saves every model checkpoint, and exports all required submission files in `submission_(methodname).zip` format!
-""")
-
-# ============================================================================
-# CELL 1: Environment Setup
-# ============================================================================
-add_code("""# Step 0: Environment Setup & Deterministic Seeds
+# Step 0: Environment Setup & Deterministic Seeds
 import os
 import sys
 import gc
@@ -118,12 +38,11 @@ if torch.cuda.is_available():
     print(f"GPU Name       : {torch.cuda.get_device_name(0)}")
     print(f"GPU VRAM       : {torch.cuda.get_device_properties(0).total_memory / (1024**3):.2f} GB")
 print("=" * 70)
-""")
 
-# ============================================================================
-# CELL 2: Checkpoint Discovery & Safeguard
-# ============================================================================
-add_code("""# Step 1: Pretrained Phase 1 Backbone Checkpoint Discovery
+
+#======================================================================
+
+# Step 1: Pretrained Phase 1 Backbone Checkpoint Discovery
 SAVED_CKPT_PATH = "/kaggle/working/champion_moe.pth"
 
 def prepare_checkpoint():
@@ -168,12 +87,11 @@ else:
     print("=" * 65)
     print("[WARNING] Checkpoint not found in /kaggle/input yet! Will use clean initialization.")
     print("=" * 65)
-""")
 
-# ============================================================================
-# CELL 3: Hugging Face Data Acquisition
-# ============================================================================
-add_code("""# Step 2: Acquire Official Phase 7 PCR Dataset (Hugging Face Hub or Kaggle Input)
+
+#======================================================================
+
+# Step 2: Acquire Official Phase 7 PCR Dataset (Hugging Face Hub or Kaggle Input)
 HF_REPO_ID = "Exploration-Lab/CS-781-Capstone"
 
 hf_token = os.environ.get("HF_TOKEN", None)
@@ -231,14 +149,13 @@ for rel_path in files_to_download:
         print(f"[Dataset] Downloaded from HF: {rel_path} -> {local_path}")
     except Exception as e:
         print(f"[Dataset] Download notice for {rel_path}: {e}")
-""")
 
-# ============================================================================
-# CELL 4: Data Parsing & Query-Candidate Alignment
-# ============================================================================
-add_code("""# Step 3: Parse Dataset & Align Query-Candidate Pools
+
+#======================================================================
+
+# Step 3: Parse Dataset & Align Query-Candidate Pools
 def extract_text(raw_val) -> str:
-    \"\"\"Extracts clean string text from string, list of sentences, or dict.\"\"\"
+    """Extracts clean string text from string, list of sentences, or dict."""
     if isinstance(raw_val, str):
         return raw_val.strip()
     elif isinstance(raw_val, list):
@@ -249,7 +166,7 @@ def extract_text(raw_val) -> str:
     return str(raw_val).strip()
 
 def parse_pcr_split(query_path, cand_path):
-    \"\"\"Parses query file and corresponding candidate pool for a split.\"\"\"
+    """Parses query file and corresponding candidate pool for a split."""
     queries = {}
     candidates = {}
 
@@ -326,12 +243,11 @@ print(f"  Active Train Pairs   : {len(train_pairs):,} (Query + Positive Prior Ca
 print(f"  Dev Queries          : {len(dev_queries):,} | Dev Candidate Pool  : {len(dev_candidates):,}")
 print(f"  Test Queries         : {len(test_queries):,} | Test Candidate Pool : {len(test_candidates):,}")
 print("=" * 70)
-""")
 
-# ============================================================================
-# CELL 5: Fast Lexical Retrieval Prior (TF-IDF / BM25)
-# ============================================================================
-add_code("""# Step 4: Fast Lexical Prior (TF-IDF / BM25 Legal Citation Overlap)
+
+#======================================================================
+
+# Step 4: Fast Lexical Prior (TF-IDF / BM25 Legal Citation Overlap)
 print("Building Lexical Retrieval Indices for Dev and Test pools...")
 t0_lex = time.time()
 
@@ -339,7 +255,7 @@ try:
     from sklearn.feature_extraction.text import TfidfVectorizer
 
     def build_lexical_similarity_matrix(query_texts, cand_texts, max_features=12000):
-        \"\"\"Computes cosine similarity matrix over legal sublinear TF-IDF.\"\"\"
+        """Computes cosine similarity matrix over legal sublinear TF-IDF."""
         vectorizer = TfidfVectorizer(
             max_features=max_features,
             ngram_range=(1, 2),
@@ -373,12 +289,11 @@ except Exception as e:
     has_lexical = False
     dev_lex_sim = None
     test_lex_sim = None
-""")
 
-# ============================================================================
-# CELL 6: Long-Document Salient Section Windowing & DataLoaders
-# ============================================================================
-add_code("""# Step 5: Long-Document Salient Section Windowing & DataLoaders
+
+#======================================================================
+
+# Step 5: Long-Document Salient Section Windowing & DataLoaders
 MAX_TOKENS = 512
 
 tokenizer = AutoTokenizer.from_pretrained("openai-community/gpt2")
@@ -387,11 +302,11 @@ if tokenizer.pad_token is None:
 tokenizer.model_max_length = 100000
 
 def extract_salient_legal_case(doc_text: str, max_words=320) -> str:
-    \"\"\"
+    """
     Extracts high-salience legal context:
     - Lead 200 words (charges, parties, dispute, jurisdiction)
     - Tail 120 words (operative decree, conviction, precedents relied upon)
-    \"\"\"
+    """
     words = doc_text.split()
     if len(words) <= max_words:
         return " ".join(words)
@@ -400,7 +315,7 @@ def extract_salient_legal_case(doc_text: str, max_words=320) -> str:
     return " ".join(lead_w) + " ... [Holding]: " + " ".join(tail_w)
 
 class PCRPairDataset(Dataset):
-    \"\"\"Dataset for training dual-encoders with query-candidate positive pairs.\"\"\"
+    """Dataset for training dual-encoders with query-candidate positive pairs."""
     def __init__(self, pairs_list, tokenizer, max_len=MAX_TOKENS):
         self.samples = []
         pad_id = tokenizer.pad_token_id or 0
@@ -453,12 +368,11 @@ train_loader = DataLoader(
     drop_last=True
 )
 print(f"DataLoaders Ready! Batches per epoch: {len(train_loader):,}")
-""")
 
-# ============================================================================
-# CELL 7: Pure PyTorch Dual-Encoder Architectures & PEFT Suite
-# ============================================================================
-add_code("""# Step 6: Pure PyTorch Dual-Encoder Architecture & PEFT Suite
+
+#======================================================================
+
+# Step 6: Pure PyTorch Dual-Encoder Architecture & PEFT Suite
 class StandardExpert(nn.Module):
     def __init__(self, dim):
         super().__init__()
@@ -546,10 +460,10 @@ class HybridMoE(nn.Module):
         return self.final_norm(out)
 
 class HybridMoEForPCR(nn.Module):
-    \"\"\"
+    """
     Dual-Encoder for Prior Case Retrieval.
     Transforms Phase 1 backbone into a bidirectional semantic retriever with projection head.
-    \"\"\"
+    """
     def __init__(self, backbone, proj_dim=256):
         super().__init__()
         self.backbone = backbone
@@ -659,7 +573,7 @@ class BottleneckAdapter(nn.Module):
     def forward(self, x): return x + self.adapter(x)
 
 class CompactLegalStudentForPCR(nn.Module):
-    \"\"\"Compact 3-layer Student Model for PCR Knowledge Distillation.\"\"\"
+    """Compact 3-layer Student Model for PCR Knowledge Distillation."""
     def __init__(self, vocab_count=50257, embed_size=384, heads=6, layers=3, proj_dim=256):
         super().__init__()
         self.embed_size = embed_size
@@ -737,14 +651,13 @@ def configure_pcr_adaptation(model, method="lorma", r=16):
     total_p = sum(p.numel() for p in model.parameters())
     print(f"  [PEFT Config] Method: {method.upper()} | Trainable: {trainable_p:,}/{total_p:,} ({100*trainable_p/total_p:.2f}%)")
     return model
-""")
 
-# ============================================================================
-# CELL 8: Contrastive InfoNCE Loss & Official Micro-F1@7 Evaluator
-# ============================================================================
-add_code("""# Step 7: InfoNCE Contrastive Loss & Official Micro-F1@7 Evaluator
+
+#======================================================================
+
+# Step 7: InfoNCE Contrastive Loss & Official Micro-F1@7 Evaluator
 class InfoNCEContrastiveLoss(nn.Module):
-    \"\"\"Symmetric In-Batch Contrastive Loss with temperature scaling.\"\"\"
+    """Symmetric In-Batch Contrastive Loss with temperature scaling."""
     def __init__(self, temperature=0.05):
         super().__init__()
         self.temperature = temperature
@@ -758,7 +671,7 @@ class InfoNCEContrastiveLoss(nn.Module):
         return 0.5 * (loss_q + loss_c)
 
 def compute_micro_f1_at_7(gold_map: Dict[str, List[str]], pred_map: Dict[str, List[str]]) -> Tuple[float, float, float]:
-    \"\"\"Computes exact Micro-F1@7, Micro-Precision@7, and Micro-Recall@7.\"\"\"
+    """Computes exact Micro-F1@7, Micro-Precision@7, and Micro-Recall@7."""
     total_tp = 0
     total_pred = 0
     total_gold = 0
@@ -778,7 +691,7 @@ def compute_micro_f1_at_7(gold_map: Dict[str, List[str]], pred_map: Dict[str, Li
     return micro_f1, micro_prec, micro_rec
 
 def encode_texts_into_matrix(model, texts_list, tokenizer, batch_size=32, device="cuda") -> np.ndarray:
-    \"\"\"Encodes a list of legal case texts into normalized dense embeddings.\"\"\"
+    """Encodes a list of legal case texts into normalized dense embeddings."""
     model.eval()
     embeddings = []
     pad_id = tokenizer.pad_token_id or 0
@@ -801,12 +714,11 @@ def encode_texts_into_matrix(model, texts_list, tokenizer, batch_size=32, device
             embeddings.append(emb.cpu().numpy())
 
     return np.vstack(embeddings) if embeddings else np.empty((0, 256))
-""")
 
-# ============================================================================
-# CELL 9: Automated High-Performance Master Runner
-# ============================================================================
-add_code("""# Step 8: Automated High-Precision Master Runner (Trains All Required Methods)
+
+#======================================================================
+
+# Step 8: Automated High-Precision Master Runner (Trains All Required Methods)
 RUN_ALL_METHODS = True
 
 ALL_METHODS = [
@@ -844,7 +756,7 @@ except Exception:
 contrastive_loss_fn = InfoNCEContrastiveLoss(temperature=0.05)
 
 for exp_idx, exp_method in enumerate(methods_to_execute):
-    print("\\n" + "#" * 70)
+    print("\n" + "#" * 70)
     print(f"### [METHOD {exp_idx+1}/{len(methods_to_execute)}] STARTING: {exp_method.upper()}")
     print("#" * 70)
 
@@ -990,7 +902,7 @@ for exp_idx, exp_method in enumerate(methods_to_execute):
     model.eval()
 
     # Generate Test Predictions
-    print(f"\\nEncoding Test Candidate Pool ({len(test_candidates)} cases) and Test Queries ({len(test_queries)})...")
+    print(f"\nEncoding Test Candidate Pool ({len(test_candidates)} cases) and Test Queries ({len(test_queries)})...")
     test_q_mat = encode_texts_into_matrix(model, test_q_texts, tokenizer, batch_size=32, device=device)
     test_c_mat = encode_texts_into_matrix(model, test_c_texts, tokenizer, batch_size=32, device=device)
     dense_test_sim = test_q_mat @ test_c_mat.T  # (N_test_q, N_test_c)
@@ -1078,15 +990,14 @@ for exp_idx, exp_method in enumerate(methods_to_execute):
     gc.collect()
     torch.cuda.empty_cache()
 
-print("\\n" + "=" * 70)
+print("\n" + "=" * 70)
 print("ALL EXPERIMENTS COMPLETED SUCCESSFULLY!")
 print("=" * 70)
-""")
 
-# ============================================================================
-# CELL 10: Reciprocal Rank Fusion (RRF) Ensemble Booster
-# ============================================================================
-add_code("""# Step 9: Reciprocal Rank Fusion (RRF) Ensemble Booster
+
+#======================================================================
+
+# Step 9: Reciprocal Rank Fusion (RRF) Ensemble Booster
 print("=" * 70)
 print("BUILDING RECIPROCAL RANK FUSION (RRF) ENSEMBLE FOR PHASE 7...")
 print("=" * 70)
@@ -1133,13 +1044,12 @@ ens_size_kb = os.path.getsize("submission_(ensemble).zip") / 1024
 
 print(f"[SUCCESS] Generated: submission_(ensemble).zip ({ens_size_kb:.1f} KB)")
 print(f"[SUCCESS] Copied to root: submission.zip ready for direct Codabench submission!")
-""")
 
-# ============================================================================
-# CELL 11: Final Master Comparison Table & Submission File Inventory
-# ============================================================================
-add_code("""# Step 10: Final Master Comparison Table & Submission File Inventory
-print("\\n" + "=" * 75)
+
+#======================================================================
+
+# Step 10: Final Master Comparison Table & Submission File Inventory
+print("\n" + "=" * 75)
 print("CS-781 PHASE 7 (PRIOR CASE RETRIEVAL) EXECUTION & SUBMISSION INVENTORY")
 print("=" * 75)
 print(f"{'Method / Experiment':<22} | {'Dev Micro-F1@7':<16} | {'Generated Zip File':<28}")
@@ -1154,19 +1064,9 @@ print("-" * 75)
 print(f"{'ENSEMBLE (RRF BOOSTER)':<22} | {'CONSENSUS':<16} | {'submission_(ensemble).zip':<28}")
 print("=" * 75)
 
-print("\\nSubmission Files Ready in /kaggle/working/:")
+print("\nSubmission Files Ready in /kaggle/working/:")
 generated_zips = sorted(glob.glob("submission*.zip"))
 for z in generated_zips:
     sz_kb = os.path.getsize(z) / 1024
     print(f"  [READY] {z:<32} ({sz_kb:6.1f} KB)")
-print("\\nAll methods have completed! Download any of the submission files and submit directly to Codabench.")
-""")
-
-output_file = "P-7/CS781_Phase7_Champion_Pipeline.ipynb"
-with open(output_file, "w", encoding="utf-8") as f:
-    json.dump(notebook, f, indent=2)
-
-root_copy = "CS781_Phase7_Champion_Pipeline.ipynb"
-shutil.copy(output_file, root_copy)
-
-print(f"Successfully generated {output_file} and {root_copy}!")
+print("\nAll methods have completed! Download any of the submission files and submit directly to Codabench.")

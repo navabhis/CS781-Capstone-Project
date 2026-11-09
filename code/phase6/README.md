@@ -5,7 +5,7 @@
 **Primary Metric:** **BERTScore F1**  
 **Secondary Metrics:** **ROUGE-1 F1**, **ROUGE-L F1**  
 **Starting Backbone:** Phase 1 Hybrid Mixture-of-Experts (`champion_moe.pth` / `moe_backup_epoch4_COMPLETE.pth`)  
-**Main Execution Notebook:** [`CS781_Phase6_Champion_Pipeline.ipynb`](../CS781_Phase6_Champion_Pipeline.ipynb) (also mirrored at `P-6/CS781_Phase6_Champion_Pipeline.ipynb`)
+**Main Execution Notebook:** [`phase6_model.ipynb`](../phase6_model.ipynb) (also mirrored at `P-6/phase6_model.ipynb`)
 
 ---
 
@@ -84,7 +84,7 @@ In Phase 6, given a lengthy Indian Supreme Court case containing facts, argument
 
 ## 5. Kaggle Execution Instructions (Automated One-Click)
 
-1. Upload [`CS781_Phase6_Champion_Pipeline.ipynb`](../CS781_Phase6_Champion_Pipeline.ipynb) to Kaggle.
+1. Upload [`phase6_model.ipynb`](../phase6_model.ipynb) to Kaggle.
 2. In the notebook settings:
    - **Accelerator:** GPU T4 x2 or GPU P100.
    - **Internet:** ON (to download `train.json` and `test.json` from Hugging Face).

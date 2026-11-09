@@ -23,7 +23,7 @@
 
 ### 2. The 6 Required Submissions (Capstone Section 10.2.1)
 
-All 6 submissions use the exact same notebook ([`CS781_Phase4_Champion_Pipeline.ipynb`](file:///c:/Users/HP/Documents/CS781%20Project/CS781_Phase4_Champion_Pipeline.ipynb)). You only change **one variable** (`EXPERIMENT_METHOD`) in **Cell 9**:
+All 6 submissions use the exact same notebook ([`phase4_model.ipynb`](file:///c:/Users/HP/Documents/CS781%20Project/phase4_model.ipynb)). You only change **one variable** (`EXPERIMENT_METHOD`) in **Cell 9**:
 
 | Run | Folder | `EXPERIMENT_METHOD` | Trainable Params | Description & Rationale | Runtime |
 |:---:|:---:|:---:|:---:|:---|:---:|
@@ -65,7 +65,7 @@ All 6 submissions use the exact same notebook ([`CS781_Phase4_Champion_Pipeline.
 2. In the top right menu, click **Restart Session** (or refresh the page).
 
 #### Step 2: Upload the Updated Notebook
-1. Open [`CS781_Phase4_Champion_Pipeline.ipynb`](file:///c:/Users/HP/Documents/CS781%20Project/CS781_Phase4_Champion_Pipeline.ipynb).
+1. Open [`phase4_model.ipynb`](file:///c:/Users/HP/Documents/CS781%20Project/phase4_model.ipynb).
 2. In Kaggle, click **File -> Upload notebook** and upload this file.
 3. Verify:
    - **Accelerator:** GPU (T4 x2 or P100) is turned ON.

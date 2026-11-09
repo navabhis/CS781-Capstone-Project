@@ -1,78 +1,4 @@
-import json
-import os
-import shutil
-
-notebook = {
-    "cells": [],
-    "metadata": {
-        "kernelspec": {
-            "display_name": "Python 3 (ipykernel)",
-            "language": "python",
-            "name": "python3"
-        },
-        "language_info": {
-            "codemirror_mode": {"name": "ipython", "version": 3},
-            "file_extension": ".py",
-            "mimetype": "text/x-python",
-            "name": "python",
-            "nbconvert_exporter": "python",
-            "pygments_lexer": "ipython3",
-            "version": "3.10.12"
-        }
-    },
-    "nbformat": 4,
-    "nbformat_minor": 4
-}
-
-def add_md(source):
-    notebook["cells"].append({
-        "cell_type": "markdown",
-        "metadata": {},
-        "source": [line + "\n" for line in source.strip().split("\n")]
-    })
-
-def add_code(source):
-    notebook["cells"].append({
-        "cell_type": "code",
-        "execution_count": None,
-        "metadata": {},
-        "outputs": [],
-        "source": [line + "\n" for line in source.strip().split("\n")]
-    })
-
-# ============================================================================
-# TITLE & OVERVIEW
-# ============================================================================
-add_md("""# CS-781 Capstone Project — Phase 6: Abstractive Legal Summarization
-## Champion High-Performance Multi-Method Pipeline (Targeting Top BERTScore & ROUGE F1)
-### Pure PyTorch Implementation Starting from Phase 1 Pretrained Backbone (`HybridMoE`)
-
----
-
-### Project Governance & Course Rules Compliance:
-1. **Strict Prohibition on Hugging Face Model Classes:**
-   - Pretrained model classes (`AutoModelForSeq2SeqLM`, `BartForConditionalGeneration`, `T5ForConditionalGeneration`, `AutoModelForCausalLM`, etc.) are **STRICTLY PROHIBITED**.
-   - All backbones, PEFT adapters, attention layers, and generation heads are implemented using **pure PyTorch primitives** (`torch.nn.Module`, `torch.nn.MultiheadAttention`, `torch.nn.Linear`, `torch.nn.Embedding`, `torch.nn.LayerNorm`).
-   - Hugging Face is used **ONLY** for tokenization (`AutoTokenizer.from_pretrained("openai-community/gpt2")`).
-2. **Phase 1 Foundation Model Starting Point:**
-   - Every experiment builds upon the Phase 1 Legal Language Model backbone (`champion_moe.pth` / `moe_backup_epoch4_COMPLETE.pth`).
-   - Adapts the 6-layer Hybrid Mixture-of-Experts (MoE) causal decoder for sequence-to-sequence conditional generation via masked causal autoregressive training.
-3. **Mandatory 6-Experiment Rule (Rubric Section 12.2):**
-   - **Method 1 (`bitfit` - P6-1):** Bias-only fine-tuning (~0.1% trainable parameters).
-   - **Method 2 (`layer_freezing` - P6-2):** Freezes lower 4 layers, fine-tunes top 2 blocks + final LayerNorm + LM head.
-   - **Method 3 (`bottleneck_adapter` - P6-3):** Series bottleneck adapters ($768 \\to 64 \\to 768$ with GELU) in attention and FFN blocks.
-   - **Method 4 (`adalora` - P6-4):** Adaptive Low-Rank SVD parameterization with dynamic rank allocation.
-   - **Method 5 (`lorma` - P6-5):** **COMPULSORY PEFT CHAMPION:** Low-Rank Multiplicative Adaptation ($h = W_0 x + \\alpha \\cdot B(A(W_0 x))$).
-   - **Method 6 (`distill` - P6-6):** **COMPULSORY KNOWLEDGE DISTILLATION:** Distills from the fine-tuned LoRMA teacher into a compact 3-layer student model (`CompactLegalStudentForSummarization`).
-   - **Bonus Method (`ensemble`):** Multi-model consensus ranking and length-normalized blending across top PEFT models -> `submission_(ensemble).zip` and root `submission.zip`.
-4. **Automated One-Click Execution:**
-   - Click **"Run All"**: Automatically executes all 6 methods back-to-back, manages GPU memory, saves every model checkpoint, and exports all required submission files in `submission_(methodname).zip` format!
-""")
-
-# ============================================================================
-# CELL 1: Environment Setup
-# ============================================================================
-add_code("""# Step 0: Environment Setup & Deterministic Seeds
+# Step 0: Environment Setup & Deterministic Seeds
 import os
 import sys
 import gc
@@ -112,12 +38,11 @@ if torch.cuda.is_available():
     print(f"GPU Name       : {torch.cuda.get_device_name(0)}")
     print(f"GPU VRAM       : {torch.cuda.get_device_properties(0).total_memory / (1024**3):.2f} GB")
 print("=" * 70)
-""")
 
-# ============================================================================
-# CELL 2: Checkpoint Discovery & Safeguard
-# ============================================================================
-add_code("""# Step 1: Pretrained Phase 1 Backbone Checkpoint Discovery
+
+#======================================================================
+
+# Step 1: Pretrained Phase 1 Backbone Checkpoint Discovery
 SAVED_CKPT_PATH = "/kaggle/working/champion_moe.pth"
 
 def prepare_checkpoint():
@@ -162,12 +87,11 @@ else:
     print("=" * 65)
     print("[WARNING] Checkpoint not found in /kaggle/input yet! Will use clean initialization.")
     print("=" * 65)
-""")
 
-# ============================================================================
-# CELL 3: Hugging Face Data Acquisition
-# ============================================================================
-add_code("""# Step 2: Acquire Official Phase 6 Dataset (Hugging Face Hub or Kaggle Input)
+
+#======================================================================
+
+# Step 2: Acquire Official Phase 6 Dataset (Hugging Face Hub or Kaggle Input)
 HF_REPO_ID = "Exploration-Lab/CS-781-Capstone"
 
 hf_token = os.environ.get("HF_TOKEN", None)
@@ -223,12 +147,11 @@ for rel_path in files_to_download:
         print(f"[Dataset] Downloaded from HF: {rel_path} -> {local_path}")
     except Exception as e:
         print(f"[Dataset] Download notice for {rel_path}: {e}")
-""")
 
-# ============================================================================
-# CELL 4: Data Parsing & Held-Out Validation Split
-# ============================================================================
-add_code("""# Step 3: Parse Dataset & Prepare Held-Out Validation Split
+
+#======================================================================
+
+# Step 3: Parse Dataset & Prepare Held-Out Validation Split
 def parse_phase6_file(file_path):
     if not file_path or not os.path.exists(file_path):
         return []
@@ -315,12 +238,11 @@ if train_docs:
     print(f"  Avg Document Word Count        : {avg_doc_words:.1f} words")
     print(f"  Avg Reference Summary Length   : {avg_summ_words:.1f} words")
 print("=" * 70)
-""")
 
-# ============================================================================
-# CELL 5: Long-Document Salient Section Windowing & DataLoaders
-# ============================================================================
-add_code("""# Step 4: Long-Document Salient Section Windowing & DataLoaders
+
+#======================================================================
+
+# Step 4: Long-Document Salient Section Windowing & DataLoaders
 # Maximum context length supported by Phase 1 backbone = 512 tokens
 MAX_TOTAL_LEN = 512
 MAX_PROMPT_LEN = 384
@@ -332,11 +254,11 @@ if tokenizer.pad_token is None:
 tokenizer.model_max_length = 100000
 
 def extract_salient_document_framing(doc_text: str, max_words=320) -> str:
-    \"\"\"
+    """
     Extracts summary-critical sections of an Indian Supreme Court judgment:
     - Lead 200 words (parties, charges, jurisdiction, impugned order)
     - Tail 120 words (operative holding, dismissal/allowance of appeal, conviction decree)
-    \"\"\"
+    """
     words = doc_text.split()
     if len(words) <= max_words:
         return " ".join(words)
@@ -345,12 +267,12 @@ def extract_salient_document_framing(doc_text: str, max_words=320) -> str:
     return " ".join(lead_w) + " ... [Holding]: " + " ".join(tail_w)
 
 class LegalSummarizationDataset(Dataset):
-    \"\"\"
+    """
     Conditional Sequence-to-Sequence Causal Dataset for Training & Validation.
     Guarantees that EVERY sample has exact, identical tensor keys:
     'input_ids', 'labels', 'loss_mask', 'attention_mask', 'id', 'prompt_text', 'raw_doc', 'raw_summary'
     Zero risk of KeyError: 'input_ids'!
-    \"\"\"
+    """
     def __init__(self, doc_list, tokenizer):
         self.samples = []
         pad_id = tokenizer.pad_token_id or 0
@@ -368,7 +290,7 @@ class LegalSummarizationDataset(Dataset):
                 continue
 
             condensed_doc = extract_salient_document_framing(raw_doc)
-            prompt = f"Document: {condensed_doc}\\n\\nSummary:"
+            prompt = f"Document: {condensed_doc}\n\nSummary:"
             summary_target = f" {raw_summ.strip()} {tokenizer.eos_token}"
 
             p_ids = tokenizer.encode(prompt, add_special_tokens=True, truncation=True, max_length=MAX_PROMPT_LEN)
@@ -414,14 +336,14 @@ class LegalSummarizationDataset(Dataset):
         return self.samples[idx]
 
 class LegalSummarizationTestDataset(Dataset):
-    \"\"\"Dataset strictly for test document generation (no reference summary required).\"\"\"
+    """Dataset strictly for test document generation (no reference summary required)."""
     def __init__(self, doc_list):
         self.samples = []
         for d in doc_list:
             d_id = str(d["id"])
             raw_doc = d.get("document", "")
             condensed_doc = extract_salient_document_framing(raw_doc)
-            prompt = f"Document: {condensed_doc}\\n\\nSummary:"
+            prompt = f"Document: {condensed_doc}\n\nSummary:"
             self.samples.append({
                 "id": d_id,
                 "prompt_text": prompt,
@@ -435,7 +357,7 @@ class LegalSummarizationTestDataset(Dataset):
         return self.samples[idx]
 
 def summarization_collate_fn(batch):
-    \"\"\"Custom collator guaranteeing zero KeyError on any batch tensor keys.\"\"\"
+    """Custom collator guaranteeing zero KeyError on any batch tensor keys."""
     return {
         "id": [item["id"] for item in batch],
         "input_ids": torch.stack([item["input_ids"] for item in batch]),
@@ -459,12 +381,11 @@ train_loader = DataLoader(
 )
 
 print(f"DataLoaders Ready! Clean Train batches: {len(train_loader):,} | Val samples: {len(val_dataset):,} | Test cases: {len(test_dataset):,}")
-""")
 
-# ============================================================================
-# CELL 6: Pure PyTorch Model Architectures & PEFT Suite
-# ============================================================================
-add_code("""# Step 5: Pure PyTorch Model Architectures & PEFT Suite
+
+#======================================================================
+
+# Step 5: Pure PyTorch Model Architectures & PEFT Suite
 class StandardExpert(nn.Module):
     def __init__(self, dim):
         super().__init__()
@@ -531,10 +452,10 @@ class HybridBlock(nn.Module):
         return x
 
 class HybridMoE(nn.Module):
-    \"\"\"
+    """
     Phase 1 Hybrid MoE Backbone (6 layers, d=768, 12 heads, alternating MoE).
     Weight-tied token embedding and output head.
-    \"\"\"
+    """
     def __init__(self, vocab_count=50257, embed_size=768, heads=12, layers=6):
         super().__init__()
         self.embed_size = embed_size
@@ -582,10 +503,10 @@ def load_phase1_backbone(checkpoint_path, device="cpu"):
 # PEFT Adaptation Implementations (LoRMA, AdaLoRA, Bottleneck Adapters, BitFit)
 # ----------------------------------------------------------------------------
 class LoRMALinear(nn.Module):
-    \"\"\"
+    """
     Low-Rank Multiplicative Adaptation (LORMA - Compulsory PEFT).
     h = W0 x + alpha * B(A(W0 x))
-    \"\"\"
+    """
     def __init__(self, original_linear, r=16, alpha=1.0, dropout=0.05):
         super().__init__()
         self.original_linear = original_linear
@@ -610,7 +531,7 @@ class LoRMALinear(nn.Module):
         return y0 + self.lorma_B(self.lorma_A(self.dropout(y0))) * self.alpha
 
 class AdaLoRALinear(nn.Module):
-    \"\"\"Adaptive Low-Rank SVD Adaptation (P * E * Q).\"\"\"
+    """Adaptive Low-Rank SVD Adaptation (P * E * Q)."""
     def __init__(self, original_linear, r=16, alpha=32.0, dropout=0.05):
         super().__init__()
         self.original_linear = original_linear
@@ -639,7 +560,7 @@ class AdaLoRALinear(nn.Module):
         return base_out + lora_out * self.scaling
 
 class BottleneckAdapter(nn.Module):
-    \"\"\"Series Bottleneck Adapter Block (dim -> 64 -> dim with GELU).\"\"\"
+    """Series Bottleneck Adapter Block (dim -> 64 -> dim with GELU)."""
     def __init__(self, dim, bottleneck_dim=64):
         super().__init__()
         self.adapter = nn.Sequential(
@@ -656,11 +577,11 @@ class BottleneckAdapter(nn.Module):
         return x + self.adapter(x)
 
 class CompactLegalStudentForSummarization(nn.Module):
-    \"\"\"
+    """
     Compulsory Knowledge Distillation Student Model.
     Lightweight 3-layer Transformer (d=384, 6 heads, FFN=1536).
     Warm-starts token embeddings from Phase 1 backbone.
-    \"\"\"
+    """
     def __init__(self, vocab_count=50257, embed_size=384, heads=6, layers=3):
         super().__init__()
         self.embed_size = embed_size
@@ -687,7 +608,7 @@ class CompactLegalStudentForSummarization(nn.Module):
         return self.output_head(h)
 
 def configure_summarization_adaptation(model, method="lorma", r=16):
-    \"\"\"Configures parameter-efficient adaptation on the Phase 1 backbone.\"\"\"
+    """Configures parameter-efficient adaptation on the Phase 1 backbone."""
     for p in model.parameters():
         p.requires_grad = False
 
@@ -736,21 +657,20 @@ def configure_summarization_adaptation(model, method="lorma", r=16):
     total_p = sum(p.numel() for p in model.parameters())
     print(f"  [PEFT Config] Method: {method.upper()} | Trainable: {trainable_p:,}/{total_p:,} ({100*trainable_p/total_p:.2f}%)")
     return model
-""")
 
-# ============================================================================
-# CELL 7: Loss, Autoregressive Generation Engine & ROUGE Evaluator
-# ============================================================================
-add_code("""# Step 6: Loss Functions, Generation Engine & Fast ROUGE Evaluator
+
+#======================================================================
+
+# Step 6: Loss Functions, Generation Engine & Fast ROUGE Evaluator
 def compute_masked_summary_loss(logits, labels, loss_mask):
-    \"\"\"Computes Cross-Entropy loss strictly over target summary tokens.\"\"\"
+    """Computes Cross-Entropy loss strictly over target summary tokens."""
     vocab_size = logits.shape[-1]
     ce_loss = F.cross_entropy(logits.view(-1, vocab_size), labels.view(-1), reduction="none", ignore_index=-100)
     flat_mask = loss_mask.view(-1)
     return (ce_loss * flat_mask).sum() / flat_mask.sum().clamp(min=1.0)
 
 def compute_distillation_summary_loss(student_logits, teacher_logits, labels, loss_mask, temperature=2.0, alpha=0.5):
-    \"\"\"Knowledge distillation loss combining soft teacher KL divergence + hard cross entropy.\"\"\"
+    """Knowledge distillation loss combining soft teacher KL divergence + hard cross entropy."""
     hard_loss = compute_masked_summary_loss(student_logits, labels, loss_mask)
     s_logits = student_logits / temperature
     t_logits = teacher_logits / temperature
@@ -766,9 +686,9 @@ def compute_distillation_summary_loss(student_logits, teacher_logits, labels, lo
 # In-Notebook Pure-Python ROUGE Evaluator (Zero External Dependencies)
 # ----------------------------------------------------------------------------
 def compute_rouge1_and_rougel(reference_text: str, candidate_text: str):
-    \"\"\"Computes exact unigram ROUGE-1 and LCS-based ROUGE-L F1 scores.\"\"\"
-    ref_toks = re.findall(r'\\w+', reference_text.lower())
-    cand_toks = re.findall(r'\\w+', candidate_text.lower())
+    """Computes exact unigram ROUGE-1 and LCS-based ROUGE-L F1 scores."""
+    ref_toks = re.findall(r'\w+', reference_text.lower())
+    cand_toks = re.findall(r'\w+', candidate_text.lower())
     if not ref_toks or not cand_toks:
         return 0.0, 0.0
 
@@ -804,14 +724,14 @@ def compute_rouge1_and_rougel(reference_text: str, candidate_text: str):
 # Salient Extractive Fallback Guard
 # ----------------------------------------------------------------------------
 def ensure_valid_legal_summary(gen_text: str, original_doc_text: str) -> str:
-    \"\"\"Guarantees that every test document has a non-empty, high-ROUGE legal summary.\"\"\"
+    """Guarantees that every test document has a non-empty, high-ROUGE legal summary."""
     clean = " ".join(gen_text.strip().split())
     if len(clean.split()) >= 15:
         return clean
 
     # Fallback to key operative court sentences
-    sents = re.split(r'(?<=[.!?])\\s+', original_doc_text.strip())
-    holding_sents = [s for s in sents if re.search(r'\\b(held|dismissed|allowed|ordered|conviction|appeal|judgment|directed|concluded)\\b', s, re.I)]
+    sents = re.split(r'(?<=[.!?])\s+', original_doc_text.strip())
+    holding_sents = [s for s in sents if re.search(r'\b(held|dismissed|allowed|ordered|conviction|appeal|judgment|directed|concluded)\b', s, re.I)]
     if holding_sents:
         chosen = " ".join(holding_sents[-2:])
     else:
@@ -823,7 +743,7 @@ def ensure_valid_legal_summary(gen_text: str, original_doc_text: str) -> str:
 # Autoregressive Generation Function
 # ----------------------------------------------------------------------------
 def generate_summary(model, tokenizer, prompt_text: str, max_new_tokens: int = 90, device="cuda") -> str:
-    \"\"\"Autoregressively generates concise abstractive legal summary.\"\"\"
+    """Autoregressively generates concise abstractive legal summary."""
     model.eval()
     p_ids = tokenizer.encode(prompt_text, add_special_tokens=True, truncation=True, max_length=MAX_PROMPT_LEN)
     generated = list(p_ids)
@@ -874,12 +794,11 @@ def generate_summary(model, tokenizer, prompt_text: str, max_new_tokens: int = 9
     gen_tokens = generated[prompt_len:]
     raw_text = tokenizer.decode(gen_tokens, skip_special_tokens=True).strip()
     return raw_text
-""")
 
-# ============================================================================
-# CELL 8: Automated High-Performance Master Runner
-# ============================================================================
-add_code("""# Step 7: Automated High-Precision Master Runner (Trains All Required Methods)
+
+#======================================================================
+
+# Step 7: Automated High-Precision Master Runner (Trains All Required Methods)
 RUN_ALL_METHODS = True
 
 ALL_METHODS = [
@@ -915,7 +834,7 @@ except Exception:
     autocast_ctx = lambda: torch.cuda.amp.autocast(enabled=torch.cuda.is_available())
 
 for exp_idx, exp_method in enumerate(methods_to_execute):
-    print("\\n" + "#" * 70)
+    print("\n" + "#" * 70)
     print(f"### [METHOD {exp_idx+1}/{len(methods_to_execute)}] STARTING: {exp_method.upper()}")
     print("#" * 70)
 
@@ -1040,7 +959,7 @@ for exp_idx, exp_method in enumerate(methods_to_execute):
     model.eval()
 
     # Generate Test Summaries
-    print(f"\\nGenerating Final Test Summaries for {exp_method.upper()} ({len(test_dataset)} cases)...")
+    print(f"\nGenerating Final Test Summaries for {exp_method.upper()} ({len(test_dataset)} cases)...")
     method_preds = []
     t0_gen = time.time()
 
@@ -1106,15 +1025,14 @@ for exp_idx, exp_method in enumerate(methods_to_execute):
     gc.collect()
     torch.cuda.empty_cache()
 
-print("\\n" + "=" * 70)
+print("\n" + "=" * 70)
 print("ALL EXPERIMENTS COMPLETED SUCCESSFULLY!")
 print("=" * 70)
-""")
 
-# ============================================================================
-# CELL 9: Multi-Model Consensus Ensemble Booster
-# ============================================================================
-add_code("""# Step 8: Multi-Model Consensus Ensemble Booster
+
+#======================================================================
+
+# Step 8: Multi-Model Consensus Ensemble Booster
 print("=" * 70)
 print("BUILDING MULTI-MODEL CONSENSUS ENSEMBLE FOR PHASE 6...")
 print("=" * 70)
@@ -1132,7 +1050,7 @@ for i in range(len(test_docs)):
     # Select candidate with median length and highest legal keyword density
     def score_summary(s):
         w = s.split()
-        kw_count = len(re.findall(r'\\b(court|appeal|held|order|dismissed|allowed|conviction|act|section|law)\\b', s, re.I))
+        kw_count = len(re.findall(r'\b(court|appeal|held|order|dismissed|allowed|conviction|act|section|law)\b', s, re.I))
         # Prefer optimal summary length of 40 to 80 words
         len_score = -abs(len(w) - 60)
         return kw_count * 2.0 + len_score
@@ -1151,13 +1069,12 @@ ens_size_kb = os.path.getsize("submission_(ensemble).zip") / 1024
 
 print(f"[SUCCESS] Generated: submission_(ensemble).zip ({ens_size_kb:.1f} KB)")
 print(f"[SUCCESS] Copied to root: submission.zip ready for direct Codabench submission!")
-""")
 
-# ============================================================================
-# CELL 10: Final Master Comparison Table & Submission File Inventory
-# ============================================================================
-add_code("""# Step 9: Final Master Comparison Table & Submission File Inventory
-print("\\n" + "=" * 75)
+
+#======================================================================
+
+# Step 9: Final Master Comparison Table & Submission File Inventory
+print("\n" + "=" * 75)
 print("CS-781 PHASE 6 (ABSTRACTIVE SUMMARIZATION) EXECUTION & SUBMISSION INVENTORY")
 print("=" * 75)
 print(f"{'Method / Experiment':<22} | {'Val ROUGE-1':<14} | {'Val ROUGE-L':<14} | {'Generated Zip File':<28}")
@@ -1173,19 +1090,9 @@ print("-" * 75)
 print(f"{'ENSEMBLE (BOOSTER)':<22} | {'CONSENSUS':<14} | {'CHAMPION':<14} | {'submission_(ensemble).zip':<28}")
 print("=" * 75)
 
-print("\\nSubmission Files Ready in /kaggle/working/:")
+print("\nSubmission Files Ready in /kaggle/working/:")
 generated_zips = sorted(glob.glob("submission*.zip"))
 for z in generated_zips:
     sz_kb = os.path.getsize(z) / 1024
     print(f"  [READY] {z:<32} ({sz_kb:6.1f} KB)")
-print("\\nAll methods have completed! Download any of the submission files and submit directly to Codabench.")
-""")
-
-output_file = "P-6/CS781_Phase6_Champion_Pipeline.ipynb"
-with open(output_file, "w", encoding="utf-8") as f:
-    json.dump(notebook, f, indent=2)
-
-root_copy = "CS781_Phase6_Champion_Pipeline.ipynb"
-shutil.copy(output_file, root_copy)
-
-print(f"Successfully generated {output_file} and {root_copy}!")
+print("\nAll methods have completed! Download any of the submission files and submit directly to Codabench.")

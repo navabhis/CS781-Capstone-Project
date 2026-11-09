@@ -1,68 +1,4 @@
-import json
-import os
-
-notebook = {
-    "cells": [],
-    "metadata": {
-        "kernelspec": {
-            "display_name": "Python 3 (ipykernel)",
-            "language": "python",
-            "name": "python3"
-        },
-        "language_info": {
-            "codemirror_mode": {"name": "ipython", "version": 3},
-            "file_extension": ".py",
-            "mimetype": "text/x-python",
-            "name": "python",
-            "nbconvert_exporter": "python",
-            "pygments_lexer": "ipython3",
-            "version": "3.10.12"
-        }
-    },
-    "nbformat": 4,
-    "nbformat_minor": 4
-}
-
-def add_md(source):
-    notebook["cells"].append({
-        "cell_type": "markdown",
-        "metadata": {},
-        "source": [line + "\n" for line in source.strip().split("\n")]
-    })
-
-def add_code(source):
-    notebook["cells"].append({
-        "cell_type": "code",
-        "execution_count": None,
-        "metadata": {},
-        "outputs": [],
-        "source": [line + "\n" for line in source.strip().split("\n")]
-    })
-
-# ============================================================================
-# TITLE & OVERVIEW
-# ============================================================================
-add_md("""# CS-781 Capstone Project — Phase 3: Rhetorical Role Prediction (RR)
-## Multi-Domain Legal NLP (Corporate Law & Information Technology)
-### Unified PEFT & Knowledge Distillation Pipeline
-
-**Target Objectives:**
-1. Sentence-level rhetorical role prediction across Corporate Law (CL) and Information Technology (IT) domains.
-2. 13 official rhetorical categories (`Fact`, `Issue`, `ArgumentPetitioner`, `ArgumentRespondent`, `Statute`, `Dissent`, `PrecedentReliedUpon`, `PrecedentNotReliedUpon`, `PrecedentOverruled`, `RulingByLowerCourt`, `RatioOfTheDecision`, `RulingByPresentCourt`, `None`).
-3. Execution of the **6 mandatory submissions**:
-   - **Run 1 (BitFit)**: Parameter-efficient bias tuning.
-   - **Run 2 (Linear Probe)**: Frozen backbone baseline.
-   - **Run 3 (LoRA)**: Standard additive low-rank adaptation ($r=16, \alpha=32.0$).
-   - **Run 4 (rsLoRA)**: Rank-stabilized low-rank adaptation ($\alpha/\sqrt{r}$).
-   - **Run 5 (Knowledge Distillation)**: Mandatory transfer from Teacher to Compact Legal Student.
-   - **Run 6 (LoRMA Champion)**: Low-Rank Multiplicative Adaptation ($h = W_0 x + \alpha B A W_0 x, \alpha=1.0$).
-4. Evaluated under strict Macro-F1 on Codabench.
-""")
-
-# ============================================================================
-# CELL 1: Environment Setup
-# ============================================================================
-add_code("""# Step 0: Environment Setup & Deterministic Seeds
+# Step 0: Environment Setup & Deterministic Seeds
 import os
 import sys
 import gc
@@ -98,12 +34,11 @@ print(f"Device: {device}")
 if torch.cuda.is_available():
     print(f"GPU: {torch.cuda.get_device_name(0)}")
     print(f"GPU Memory: {torch.cuda.get_device_properties(0).total_memory / (1024**3):.2f} GB")
-""")
 
-# ============================================================================
-# CELL 2: Checkpoint Safeguard & Discovery
-# ============================================================================
-add_code("""# Step 1: Pretrained Phase 1 Backbone Checkpoint Discovery
+
+#======================================================================
+
+# Step 1: Pretrained Phase 1 Backbone Checkpoint Discovery
 SAVED_CKPT_PATH = "/kaggle/working/champion_moe.pth"
 
 def prepare_checkpoint():
@@ -147,12 +82,11 @@ else:
     print("=" * 65)
     print("⚠️ Checkpoint not found yet! Please attach Phase 1 dataset/model to Kaggle.")
     print("=" * 65)
-""")
 
-# ============================================================================
-# CELL 3: Hugging Face Data Ingestion
-# ============================================================================
-add_code("""# Step 2: Acquire Official Phase 3 RR Dataset (Local Input or Hugging Face Hub)
+
+#======================================================================
+
+# Step 2: Acquire Official Phase 3 RR Dataset (Local Input or Hugging Face Hub)
 HF_REPO_ID = "Exploration-Lab/CS-781-Capstone"
 
 # Retrieve Hugging Face Access Token from Kaggle Secrets if available
@@ -207,12 +141,11 @@ for rel_path in files_to_download:
         print(f"[Dataset] Downloaded from HF: {rel_path} -> {local_path}")
     except Exception as e:
         print(f"[Dataset] Download notice for {rel_path}: {e}")
-""")
 
-# ============================================================================
-# CELL 4: Data Parsing & Label Alignment
-# ============================================================================
-add_code("""# Step 3: Parse Multi-Domain Datasets (CL & IT) and Build Label Vocab
+
+#======================================================================
+
+# Step 3: Parse Multi-Domain Datasets (CL & IT) and Build Label Vocab
 OFFICIAL_RR_LABELS = [
     "Fact",
     "Issue",
@@ -251,10 +184,10 @@ for idx, lbl in ID2LABEL.items():
     print(f"  [{idx:02d}] {lbl}")
 
 def parse_rr_file(file_path):
-    \"\"\"
+    """
     Parses Phase 3 document files robustly across list-of-dicts and dict-of-dicts formats.
     Returns: list of dicts: [{'id': doc_id, 'domain': domain, 'sentences': [...], 'labels': [...]}]
-    \"\"\"
+    """
     if not os.path.exists(file_path):
         return []
     with open(file_path, "r", encoding="utf-8") as f:
@@ -302,12 +235,11 @@ print(f"Validation: {len(dev_docs)} documents ({dev_sents:,} sentences) [CL: {le
 print(f"Test (CL):  {len(cl_test_docs)} documents ({cl_test_sents:,} sentences)")
 print(f"Test (IT):  {len(it_test_docs)} documents ({it_test_sents:,} sentences)")
 print("=" * 65)
-""")
 
-# ============================================================================
-# CELL 5: Base Architecture (Phase 1 Champion MoE)
-# ============================================================================
-add_code("""# Step 4: Phase 1 Hybrid Mixture-of-Experts Architecture
+
+#======================================================================
+
+# Step 4: Phase 1 Hybrid Mixture-of-Experts Architecture
 class StandardExpert(nn.Module):
     def __init__(self, dim):
         super().__init__()
@@ -398,19 +330,18 @@ class HybridMoE(nn.Module):
     def forward(self, x, causal=True):
         h = self.get_hidden_states(x, causal=causal)
         return self.output_head(h)
-""")
 
-# ============================================================================
-# CELL 6: Sentence Classification & PEFT Modules
-# ============================================================================
-add_code("""# Step 5: Sentence-Level Classifier & PEFT Modules (LoRA, rsLoRA, LoRMA, BitFit)
+
+#======================================================================
+
+# Step 5: Sentence-Level Classifier & PEFT Modules (LoRA, rsLoRA, LoRMA, BitFit)
 
 class HybridMoEForSentenceClassification(nn.Module):
-    \"\"\"
+    """
     Sentence-level classification model leveraging Phase 1 pretrained representations.
     Combines masked mean-pooled sentence representations with normalized document-level
     positional features (relative depth & sinusoidal projections) to model canonical legal judgment flow.
-    \"\"\"
+    """
     def __init__(self, backbone, num_labels=13, dropout=0.1):
         super().__init__()
         self.backbone = backbone
@@ -451,10 +382,10 @@ class HybridMoEForSentenceClassification(nn.Module):
         return logits
 
 class CompactLegalStudentForSentenceClassification(nn.Module):
-    \"\"\"
+    """
     Mandatory Knowledge Distillation Student (Section 9.2.2).
     A lightweight 3-layer dense architecture with hidden size 384 (3x smaller than Teacher).
-    \"\"\"
+    """
     def __init__(self, vocab_count=50257, embed_size=384, heads=6, layers=3, num_labels=13, dropout=0.1):
         super().__init__()
         self.embed_size = embed_size
@@ -513,7 +444,7 @@ class LoRMAAdapter(nn.Module):
         return x + self.lorma_B(self.lorma_A(self.dropout(x))) * self.alpha
 
 class LoRMALinear(nn.Module):
-    \"\"\"LoRMA: Low-Rank Multiplicative Adaptation (Bihany et al., ACL 2025)\"\"\"
+    """LoRMA: Low-Rank Multiplicative Adaptation (Bihany et al., ACL 2025)"""
     def __init__(self, original_linear, r=16, alpha=1.0, dropout=0.05):
         super().__init__()
         self.original_linear = original_linear
@@ -551,7 +482,7 @@ class LoRAAdapter(nn.Module):
         return x + self.lora_B(self.lora_A(self.dropout(x))) * self.scaling
 
 class LoRALinear(nn.Module):
-    \"\"\"Standard LoRA and rsLoRA Linear Adapter\"\"\"
+    """Standard LoRA and rsLoRA Linear Adapter"""
     def __init__(self, original_linear, r=16, alpha=32.0, dropout=0.05, rank_stabilized=False):
         super().__init__()
         self.original_linear = original_linear
@@ -586,10 +517,10 @@ def load_phase1_backbone(checkpoint_path, device="cpu"):
     return backbone
 
 def configure_adaptation(model, method="lorma", r=16, alpha=None):
-    \"\"\"
+    """
     Configures PEFT adaptation across the 6 required methodologies:
     'bitfit', 'linear_probe', 'lora', 'rslora', 'distill', 'lorma'
-    \"\"\"
+    """
     method = method.lower()
     if method == "full":
         for p in model.parameters(): p.requires_grad = True
@@ -632,19 +563,18 @@ def configure_adaptation(model, method="lorma", r=16, alpha=None):
     total = sum(p.numel() for p in model.parameters())
     print(f"[PEFT Config: {method.upper()}] Trainable Parameters: {trainable:,} / {total:,} ({100*trainable/total:.2f}%)")
     return model
-""")
 
-# ============================================================================
-# CELL 7: Dataset & Collation
-# ============================================================================
-add_code("""# Step 6: Dataset & Batch Collation
+
+#======================================================================
+
+# Step 6: Dataset & Batch Collation
 class RRSentenceDataset(Dataset):
-    \"\"\"
+    """
     Dataset for sentence-level Rhetorical Role prediction.
     Flattens documents into individual sentence samples while preserving document metadata.
     Computes 6-dim structural positional features (canonical document flow)
     and places target sentence first to eliminate truncation loss.
-    \"\"\"
+    """
     def __init__(self, doc_list, tokenizer, max_length=160, use_context=False):
         self.samples = []
         for d in doc_list:
@@ -713,18 +643,17 @@ class RRSentenceDataset(Dataset):
 tokenizer = AutoTokenizer.from_pretrained("openai-community/gpt2")
 if tokenizer.pad_token is None:
     tokenizer.pad_token = tokenizer.eos_token
-""")
 
-# ============================================================================
-# CELL 8: ClassBalancedFocalLoss & Strict Macro-F1 Evaluator
-# ============================================================================
-add_code("""# Step 7: ClassBalancedFocalLoss & Strict Macro-F1 Evaluator
+
+#======================================================================
+
+# Step 7: ClassBalancedFocalLoss & Strict Macro-F1 Evaluator
 class ClassBalancedFocalLoss(nn.Module):
-    \"\"\"
+    """
     Class-Balanced Focal Loss (Lin et al. 2017; Cui et al. 2019)
     Combines inverse class frequency weighting with focal modulation gamma=1.5
     to penalize easy frequent examples and focus gradients on underrepresented rhetorical roles.
-    \"\"\"
+    """
     def __init__(self, weights=None, gamma=1.5, ignore_index=-100):
         super().__init__()
         self.weights = weights
@@ -752,10 +681,10 @@ class ClassBalancedFocalLoss(nn.Module):
         return loss.mean()
 
 def evaluate_rr_macro_f1(gold_dict, pred_dict):
-    \"\"\"
+    """
     Computes official Macro-F1 across the 13 rhetorical role categories.
     Validates that every test document has exactly the required number of predictions.
-    \"\"\"
+    """
     tp = {c: 0 for c in OFFICIAL_RR_LABELS}
     fp = {c: 0 for c in OFFICIAL_RR_LABELS}
     fn = {c: 0 for c in OFFICIAL_RR_LABELS}
@@ -781,12 +710,11 @@ def evaluate_rr_macro_f1(gold_dict, pred_dict):
         
     macro_f1 = sum(f1_scores.values()) / len(f1_scores)
     return macro_f1, f1_scores
-""")
 
-# ============================================================================
-# CELL 9: Experiment Configuration & Training
-# ============================================================================
-add_code("""# Step 8: Configure & Execute Selected Experiment
+
+#======================================================================
+
+# Step 8: Configure & Execute Selected Experiment
 # =============================================================================
 # SELECT YOUR EXPERIMENT METHOD (Choose 1 of the 6 required):
 #   - 'bitfit'       : Submission P3-1 (Bias-only tuning)
@@ -962,12 +890,11 @@ for epoch in range(1, EPOCHS + 1):
 print("=" * 65)
 print(f"TRAINING COMPLETE! Best Validation Macro-F1: {best_f1:.4f} with Logit Adjustment Beta: {best_beta:.2f}")
 print("=" * 65)
-""")
 
-# ============================================================================
-# CELL 10: Final Test Inference & Codabench Submission
-# ============================================================================
-add_code("""# Step 9: Final Test Inference across CL & IT Domains and submission.zip Packaging
+
+#======================================================================
+
+# Step 9: Final Test Inference across CL & IT Domains and submission.zip Packaging
 print(f"Generating Test Predictions for {EXPERIMENT_METHOD.upper()}...")
 
 if os.path.exists(best_model_path):
@@ -1037,21 +964,20 @@ if validation_passed:
         zipf.write("prediction.json", arcname="prediction.json")
         
     zip_size_kb = os.path.getsize("submission.zip") / 1024
-    print(f"\\n🎉 SUCCESS! Created submission.zip ({zip_size_kb:.1f} KB) with prediction.json at root.")
+    print(f"\n🎉 SUCCESS! Created submission.zip ({zip_size_kb:.1f} KB) with prediction.json at root.")
     
     # Sample Output Inspection
     sample_id = list(final_test_predictions.keys())[0]
-    print(f"\\nSample Predictions for Doc {sample_id} (first 5 sentences):")
+    print(f"\nSample Predictions for Doc {sample_id} (first 5 sentences):")
     for s_i, lbl in enumerate(final_test_predictions[sample_id][:5]):
         print(f"  [Sentence {s_i+1:02d}]: {lbl}")
 else:
     raise ValueError("Submission validation failed! Please check sentence lengths.")
-""")
 
-# ============================================================================
-# CELL 11: Summary Table
-# ============================================================================
-add_code("""# Step 10: Benchmark Table Entry Generator
+
+#======================================================================
+
+# Step 10: Benchmark Table Entry Generator
 print(f"============================================================")
 print(f"SUBMISSION SUMMARY FOR CAPSTONE REPORT (PHASE 3)")
 print(f"============================================================")
@@ -1063,10 +989,3 @@ print(f"Learning Rate:     {LEARNING_RATE:.2e}")
 print(f"Context-Aware:     {USE_CONTEXT}")
 print(f"File Produced:     submission.zip (contains prediction.json)")
 print(f"============================================================")
-""")
-
-output_file = "P-3/CS781_Phase3_Champion_Pipeline.ipynb"
-with open(output_file, "w", encoding="utf-8") as f:
-    json.dump(notebook, f, indent=2)
-
-print(f"Generated {output_file} successfully!")
