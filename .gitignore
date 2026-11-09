@@ -1,0 +1,43 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+
+# Checkpoints and Model Weights (Strictly Prohibited from Repo)
+*.pth
+*.pt
+*.bin
+*.safetensors
+*.ckpt
+champion_moe.pth
+moe_backup_epoch4_COMPLETE.pth
+
+# Environments & IDEs
+.env
+.venv
+env/
+venv/
+ENV/
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# Jupyter
+.ipynb_checkpoints/
+*/.ipynb_checkpoints/*
+
+# Data directories and large datasets
+Phase_*/
+data/
+*.jsonl
+
+# Large zip archives (keep repo lightweight)
+submission_*.zip
+submission.zip
+
+# Automation scripts
+push_to_github.bat
+*.bat
