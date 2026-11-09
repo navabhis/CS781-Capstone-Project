@@ -120,7 +120,7 @@ Under strict legal and data-confidentiality covenants, court dockets and privile
 ### Environment Setup
 ```bash
 # Clone the repository
-git clone https://github.com/<your-username>/CS781-Legal-NLP-Foundation.git
+git clone https://github.com/navabhis/CS781-Capstone-Project.git
 cd CS781-Legal-NLP-Foundation
 
 # Install standard dependencies
